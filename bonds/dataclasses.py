@@ -20,12 +20,13 @@ class BondInfo:
 
     coupons_per_year: int
 
-    next_coupon_before_tax: str
-    next_coupon_after_tax: str
+    next_coupon: str
 
     portfolio_percent: str
 
-    # yield_to_maturity: str
+    yield_to_maturity: str
+
+    coupon_yield: str
 
 
 @dataclass(frozen=True)

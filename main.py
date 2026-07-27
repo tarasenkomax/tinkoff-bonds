@@ -8,16 +8,17 @@ from conf import TINKOFF_ACCOUNT_ID, TINKOFF_TOKEN
 
 NAME_WIDTH = 32
 RATING_WIDTH = 10
-MATURITY_WIDTH = 16
-NOMINAL_WIDTH = 15
+MATURITY_WIDTH = 12
+NOMINAL_WIDTH = 14
 AMORTIZATION_WIDTH = 8
 FLOATER_WIDTH = 10
-BUY_PRICE_WIDTH = 16
+BUY_PRICE_WIDTH = 15
 QUANTITY_WIDTH = 8
-COUPONS_WIDTH = 16
-COUPON_WIDTH = 22
+COUPONS_WIDTH = 10
+COUPON_WIDTH = 18
 PORTFOLIO_WIDTH = 12
-YIELD_WIDTH = 22
+CURRENT_YIELD_WIDTH = 25
+YTM_WIDTH = 10
 
 
 def _format_percent(
@@ -78,17 +79,17 @@ def print_bonds_table(
     header = (
         f"{'Название':<{NAME_WIDTH}}"
         f"{'Рейтинг':<{RATING_WIDTH}}"
-        f"{'Дата погашения':<{MATURITY_WIDTH}}"
+        f"{'Погашение':<{MATURITY_WIDTH}}"
         f"{'Номинал':<{NOMINAL_WIDTH}}"
         f"{'Аморт.':<{AMORTIZATION_WIDTH}}"
         f"{'Флоатер':<{FLOATER_WIDTH}}"
-        f"{'Цена покупки':<{BUY_PRICE_WIDTH}}"
+        f"{'Покупка':<{BUY_PRICE_WIDTH}}"
         f"{'Кол-во':<{QUANTITY_WIDTH}}"
-        f"{'Выплат в год':<{COUPONS_WIDTH}}"
-        f"{'Купон до НДФЛ':<{COUPON_WIDTH}}"
-        f"{'Купон после НДФЛ':<{COUPON_WIDTH}}"
+        f"{'Куп./год':<{COUPONS_WIDTH}}"
+        f"{'Купон (до/после)':<{COUPON_WIDTH}}"
         f"{'% портфеля':<{PORTFOLIO_WIDTH}}"
-        # f"{'Доходность к погашению':<{YIELD_WIDTH}}"
+        f"{'Тек. доходность (до/после)':<{CURRENT_YIELD_WIDTH}}"
+        f"{'YTM':<{YTM_WIDTH}}"
     )
 
     print(header)
@@ -105,10 +106,10 @@ def print_bonds_table(
             f"{bond.buy_price:<{BUY_PRICE_WIDTH}}"
             f"{bond.quantity:<{QUANTITY_WIDTH}}"
             f"{bond.coupons_per_year:<{COUPONS_WIDTH}}"
-            f"{bond.next_coupon_before_tax:<{COUPON_WIDTH}}"
-            f"{bond.next_coupon_after_tax:<{COUPON_WIDTH}}"
+            f"{bond.next_coupon:<{COUPON_WIDTH}}"
             f"{bond.portfolio_percent:<{PORTFOLIO_WIDTH}}"
-            # f"{bond.yield_to_maturity:<{YIELD_WIDTH}}"
+            f"{bond.coupon_yield:<{CURRENT_YIELD_WIDTH}}"
+            f"{bond.yield_to_maturity:<{YTM_WIDTH}}"
         )
 
 

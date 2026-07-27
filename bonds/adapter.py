@@ -78,14 +78,14 @@ class TinkoffInvestAdapter:
 
         return (
             self._client.instruments.bond_by(
-                id_type=(InstrumentIdType.INSTRUMENT_ID_TYPE_FIGI),
+                id_type=InstrumentIdType.INSTRUMENT_ID_TYPE_FIGI,
                 id=figi,
             ).instrument
         )
 
     def get_bond_coupons(self, figi: str):
         """
-        Получает купонные выплаты по облигации.
+        Возвращает список купонов облигации.
 
         Args:
             figi:
@@ -95,7 +95,9 @@ class TinkoffInvestAdapter:
             Список купонных выплат.
         """
 
-        return self._client.instruments.get_bond_coupons(figi=figi)
+        response = self._client.instruments.get_bond_coupons(figi=figi)
+
+        return response.events
 
     def get_next_bond_coupon(self, figi: str):
         """
