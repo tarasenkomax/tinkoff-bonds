@@ -331,53 +331,44 @@ class BondService(MoneyFormatterMixin):
 
         bond_positions = self._get_bonds_portfolio()
 
-        total_quantity = sum(
-            position.quantity.units
-            for position in bond_positions
-        )
-
-        total_invested = sum(
-            self._money_to_decimal(position.average_position_price) * Decimal(position.quantity.units)
-            for position in bond_positions
-        )
-
-        current_value = sum(
-            self._money_to_decimal(position.current_price) * Decimal(position.quantity.units)
-            for position in bond_positions
-        )
-
-        change_percent = (
-            self._calculate_portfolio_change_percent(
-                invested=total_invested,
-                current_value=current_value,
-            )
-        )
+        total_quantity = 0
+        total_invested = Decimal("0")
+        current_value = Decimal("0")
 
         total_coupon_income_before_tax = Decimal("0")
         total_coupon_income_after_tax = Decimal("0")
-        for position in bond_positions:
-            bond = self._adapter.get_bond_by_figi(position.figi)
 
-            price = self._money_to_decimal(
-                position.average_position_price
-            )
+        for position in bond_positions:
+            quantity = Decimal(position.quantity.units)
+            bond = self._adapter.get_bond_by_figi(position.figi)
+            buy_price = self._money_to_decimal(position.average_position_price)
+            current_price = self._money_to_decimal(position.current_price)
+            total_quantity += position.quantity.units
+            total_invested += buy_price * quantity
+            current_value += current_price * quantity
+
+            if buy_price <= 0:
+                continue
 
             coupon = self._get_next_coupon(position.figi)
+            coupons_per_year = Decimal(bond.coupon_quantity_per_year)
+            annual_coupon_before_tax = (coupon * coupons_per_year)
+            annual_coupon_after_tax = (self._calculate_coupon_after_tax(coupon) * coupons_per_year)
+            total_coupon_income_before_tax += (annual_coupon_before_tax * quantity)
+            total_coupon_income_after_tax += (annual_coupon_after_tax * quantity)
 
-            if price > 0:
-                annual_coupon_before_tax = coupon * Decimal(bond.coupon_quantity_per_year)
+        change_percent = (
+            self._calculate_portfolio_change_percent(invested=total_invested, current_value=current_value)
+            if total_invested > 0 else Decimal("0")
+        )
 
-                annual_coupon_after_tax = self._calculate_coupon_after_tax(coupon) * Decimal(
-                    bond.coupon_quantity_per_year)
+        coupon_yield_before_tax = (
+            total_coupon_income_before_tax / total_invested * Decimal("100") if total_invested > 0 else Decimal("0")
+        )
 
-                total_coupon_income_before_tax += annual_coupon_before_tax * Decimal(position.quantity.units)
-                total_coupon_income_after_tax += annual_coupon_after_tax * Decimal(position.quantity.units)
-
-        coupon_yield_before_tax = total_coupon_income_before_tax / total_invested * Decimal(
-            "100") if total_invested > 0 else Decimal("0")
-
-        coupon_yield_after_tax = total_coupon_income_after_tax / total_invested * Decimal(
-            "100") if total_invested > 0 else Decimal("0")
+        coupon_yield_after_tax = (
+            total_coupon_income_after_tax / total_invested * Decimal("100") if total_invested > 0 else Decimal("0")
+            )
 
         return BondPortfolioInfo(
             total_quantity=total_quantity,
