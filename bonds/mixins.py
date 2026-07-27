@@ -55,7 +55,4 @@ class MoneyFormatterMixin:
             Значение в Decimal.
         """
 
-        return (
-            Decimal(quotation.units)
-            + Decimal(quotation.nano) / self.NANO_DIVISOR
-        )
+        return Decimal(quotation.units) + Decimal(quotation.nano) / self.NANO_DIVISOR

@@ -3,7 +3,7 @@ from decimal import Decimal
 from t_tech.invest import Client
 
 from bonds.adapter import TinkoffInvestAdapter
-from bonds.service import BondInfo, BondService, BondPortfolioInfo
+from bonds.service import BondInfo, BondPortfolioInfo, BondService
 from conf import TINKOFF_ACCOUNT_ID, TINKOFF_TOKEN
 
 NAME_WIDTH = 32
@@ -15,9 +15,9 @@ FLOATER_WIDTH = 10
 BUY_PRICE_WIDTH = 15
 QUANTITY_WIDTH = 8
 COUPONS_WIDTH = 10
-COUPON_WIDTH = 18
+COUPON_WIDTH = 22
 PORTFOLIO_WIDTH = 12
-CURRENT_YIELD_WIDTH = 25
+CURRENT_YIELD_WIDTH = 29
 YTM_WIDTH = 10
 
 
@@ -59,12 +59,20 @@ def print_portfolio_info(
     """
     Выводит сводную информацию по облигационному портфелю.
     """
+    difference = portfolio_info.current_value - portfolio_info.total_invested
+    difference_sign = "+" if difference >= 0 else "-"
+    difference_str = f"{difference_sign}{_format_decimal_ru(abs(difference))} ₽"
 
     print(f"{'Кол-во облигаций:'} {portfolio_info.total_quantity}")
     print(f"{'Вложено:'} {_format_decimal_ru(portfolio_info.total_invested)} ₽")
     print(
         f"{'Актуальная цена портфеля:'} {_format_decimal_ru(portfolio_info.current_value)} ₽ "
-        f"({_format_percent(portfolio_info.change_percent)})"
+        f"({_format_percent(portfolio_info.change_percent)} | {difference_str})"
+    )
+    print(
+        f"{'Купонная доходность (до/после):'} "
+        f"{portfolio_info.coupon_yield_before_tax:.2f}% / "
+        f"{portfolio_info.coupon_yield_after_tax:.2f}%"
     )
     print()
 

@@ -39,3 +39,5 @@ class BondPortfolioInfo:
     total_invested: Decimal
     current_value: Decimal
     change_percent: Decimal
+    coupon_yield_before_tax: Decimal
+    coupon_yield_after_tax: Decimal

@@ -313,7 +313,7 @@ class BondService(MoneyFormatterMixin):
             buy_price=self._format_money(position.average_position_price),
             quantity=position.quantity.units,
             coupons_per_year=bond.coupon_quantity_per_year,
-            next_coupon=   f"{next_coupon:.2f} ₽ / {coupon_after_tax:.2f} ₽",
+            next_coupon=f"{next_coupon:.2f} ₽ / {coupon_after_tax:.2f} ₽",
             portfolio_percent=f"{self._calculate_position_percent(position, total_bonds_quantity):.2f}%",
             yield_to_maturity=(f"~{ytm:.2f}%" if bond.floating_coupon_flag else f"{ytm:.2f}%"),
             coupon_yield=f"{coupon_yield_before:.2f}% / {coupon_yield_after:.2f}%",
@@ -353,11 +353,39 @@ class BondService(MoneyFormatterMixin):
             )
         )
 
+        total_coupon_income_before_tax = Decimal("0")
+        total_coupon_income_after_tax = Decimal("0")
+        for position in bond_positions:
+            bond = self._adapter.get_bond_by_figi(position.figi)
+
+            price = self._money_to_decimal(
+                position.average_position_price
+            )
+
+            coupon = self._get_next_coupon(position.figi)
+
+            if price > 0:
+                annual_coupon_before_tax = coupon * Decimal(bond.coupon_quantity_per_year)
+
+                annual_coupon_after_tax = self._calculate_coupon_after_tax(coupon) * Decimal(
+                    bond.coupon_quantity_per_year)
+
+                total_coupon_income_before_tax += annual_coupon_before_tax * Decimal(position.quantity.units)
+                total_coupon_income_after_tax += annual_coupon_after_tax * Decimal(position.quantity.units)
+
+        coupon_yield_before_tax = total_coupon_income_before_tax / total_invested * Decimal(
+            "100") if total_invested > 0 else Decimal("0")
+
+        coupon_yield_after_tax = total_coupon_income_after_tax / total_invested * Decimal(
+            "100") if total_invested > 0 else Decimal("0")
+
         return BondPortfolioInfo(
             total_quantity=total_quantity,
             total_invested=total_invested,
             current_value=current_value,
             change_percent=change_percent,
+            coupon_yield_before_tax=coupon_yield_before_tax,
+            coupon_yield_after_tax=coupon_yield_after_tax,
         )
 
     def _calculate_portfolio_change_percent(
