@@ -123,10 +123,13 @@ class BondService(MoneyFormatterMixin):
         bond: Bond,
         position: PortfolioPosition,
         coupon: Decimal,
+        after_tax: bool = False,
     ) -> Decimal:
         """
         Рассчитывает приблизительную доходность облигации
         к погашению.
+
+        Для after_tax=True используется купон после НДФЛ.
 
         Формула:
             (годовой купон + (номинал - цена) / лет до погашения)
@@ -138,6 +141,13 @@ class BondService(MoneyFormatterMixin):
 
             position:
                 Позиция пользователя.
+
+            coupon:
+                Размер купона на одну облигацию до уплаты НДФЛ.
+
+            after_tax:
+                Если True, рассчитывает доходность с учётом НДФЛ
+                на купонный доход. По умолчанию False.
 
         Returns:
             Доходность в процентах.
@@ -161,6 +171,9 @@ class BondService(MoneyFormatterMixin):
 
         if years_to_maturity <= 0:
             return Decimal("0")
+
+        if after_tax:
+            coupon = self._calculate_coupon_after_tax(coupon)
 
         coupons_per_year = Decimal(bond.coupon_quantity_per_year)
 
@@ -298,7 +311,13 @@ class BondService(MoneyFormatterMixin):
         """
 
         next_coupon = self._get_next_coupon(position.figi)
-        ytm = self._calculate_yield_to_maturity(bond=bond, position=position, coupon=next_coupon)
+        ytm_before_tax = self._calculate_yield_to_maturity(bond=bond, position=position, coupon=next_coupon)
+        ytm_after_tax = self._calculate_yield_to_maturity(
+            bond=bond,
+            position=position,
+            coupon=next_coupon,
+            after_tax=True,
+        )
         coupon_yield_before = self._calculate_coupon_yield_before_tax(bond, position, next_coupon)
         coupon_yield_after = self._calculate_coupon_yield_after_tax(bond, position, next_coupon)
         coupon_after_tax = self._calculate_coupon_after_tax(next_coupon)
@@ -315,7 +334,12 @@ class BondService(MoneyFormatterMixin):
             coupons_per_year=bond.coupon_quantity_per_year,
             next_coupon=f"{next_coupon:.2f} ₽ / {coupon_after_tax:.2f} ₽",
             portfolio_percent=f"{self._calculate_position_percent(position, total_bonds_quantity):.2f}%",
-            yield_to_maturity=(f"~{ytm:.2f}%" if bond.floating_coupon_flag else f"{ytm:.2f}%"),
+            yield_to_maturity=(
+                f"{'~' if bond.floating_coupon_flag else ''}"
+                f"{ytm_before_tax:.2f}% / "
+                f"{'~' if bond.floating_coupon_flag else ''}"
+                f"{ytm_after_tax:.2f}%"
+            ),
             coupon_yield=f"{coupon_yield_before:.2f}% / {coupon_yield_after:.2f}%",
         )
 
@@ -368,7 +392,7 @@ class BondService(MoneyFormatterMixin):
 
         coupon_yield_after_tax = (
             total_coupon_income_after_tax / total_invested * Decimal("100") if total_invested > 0 else Decimal("0")
-            )
+        )
 
         return BondPortfolioInfo(
             total_quantity=total_quantity,

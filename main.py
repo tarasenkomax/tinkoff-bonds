@@ -97,7 +97,7 @@ def print_bonds_table(
         f"{'Купон (до/после)':<{COUPON_WIDTH}}"
         f"{'% портфеля':<{PORTFOLIO_WIDTH}}"
         f"{'Тек. доходность (до/после)':<{CURRENT_YIELD_WIDTH}}"
-        f"{'YTM':<{YTM_WIDTH}}"
+        f"{'YTM (до/после)':<{YTM_WIDTH}}"
     )
 
     print(header)
