@@ -4,7 +4,11 @@ from t_tech.invest import Client
 
 from bonds.adapter import TinkoffInvestAdapter
 from bonds.service import BondInfo, BondPortfolioInfo, BondService
-from conf import TINKOFF_TOKEN, TINKOFF_IIS_ACCOUNT_ID, TINKOFF_BROKER_ACCOUNT_ID
+from conf import (
+    TINKOFF_BROKER_ACCOUNT_ID,
+    TINKOFF_IIS_ACCOUNT_ID,
+    TINKOFF_TOKEN,
+)
 
 NAME_WIDTH = 32
 RATING_WIDTH = 10
@@ -32,7 +36,7 @@ def _format_percent(
         -3.45 -> -3.45%
     """
 
-    return f"{value:+.2f}%"
+    return f'{value:+.2f}%'
 
 
 def _format_decimal_ru(
@@ -45,12 +49,7 @@ def _format_decimal_ru(
         1234567.89 -> 1.234.567,89
     """
 
-    return (
-        f"{value:,.2f}"
-        .replace(",", " ")
-        .replace(".", ",")
-        .replace(" ", ".")
-    )
+    return f'{value:,.2f}'.replace(',', ' ').replace('.', ',').replace(' ', '.')
 
 
 def print_portfolio_info(
@@ -60,19 +59,19 @@ def print_portfolio_info(
     Выводит сводную информацию по облигационному портфелю.
     """
     difference = portfolio_info.current_value - portfolio_info.total_invested
-    difference_sign = "+" if difference >= 0 else "-"
-    difference_str = f"{difference_sign}{_format_decimal_ru(abs(difference))} ₽"
+    difference_sign = '+' if difference >= 0 else '-'
+    difference_str = f'{difference_sign}{_format_decimal_ru(abs(difference))} ₽'
 
     print(f"{'Кол-во облигаций:'} {portfolio_info.total_quantity}")
     print(f"{'Вложено:'} {_format_decimal_ru(portfolio_info.total_invested)} ₽")
     print(
         f"{'Актуальная цена портфеля:'} {_format_decimal_ru(portfolio_info.current_value)} ₽ "
-        f"({_format_percent(portfolio_info.change_percent)} | {difference_str})"
+        f'({_format_percent(portfolio_info.change_percent)} | {difference_str})'
     )
     print(
         f"{'Купонная доходность (до/после):'} "
-        f"{portfolio_info.coupon_yield_before_tax:.2f}% / "
-        f"{portfolio_info.coupon_yield_after_tax:.2f}%"
+        f'{portfolio_info.coupon_yield_before_tax:.2f}% / '
+        f'{portfolio_info.coupon_yield_after_tax:.2f}%'
     )
     print()
 
@@ -101,33 +100,29 @@ def print_bonds_table(
     )
 
     print(header)
-    print("-" * len(header))
+    print('-' * len(header))
 
     for bond in bonds:
-        coupon = (
-            f"{bond.next_coupon_before_tax} / "
-            f"{bond.next_coupon_after_tax}"
-        )
+        coupon = f'{bond.next_coupon_before_tax} / ' f'{bond.next_coupon_after_tax}'
 
         current_yield = (
-            f"{bond.coupon_yield_before_tax} / "
-            f"{bond.coupon_yield_after_tax}"
+            f'{bond.coupon_yield_before_tax} / ' f'{bond.coupon_yield_after_tax}'
         )
 
         print(
-            f"{bond.name:<{NAME_WIDTH}.{NAME_WIDTH}}"
-            f"{bond.rating:<{RATING_WIDTH}}"
-            f"{bond.maturity_date:<{MATURITY_WIDTH}}"
-            f"{bond.nominal:<{NOMINAL_WIDTH}}"
-            f"{bond.amortization:<{AMORTIZATION_WIDTH}}"
-            f"{bond.floater:<{FLOATER_WIDTH}}"
-            f"{bond.buy_price:<{BUY_PRICE_WIDTH}}"
-            f"{bond.quantity:<{QUANTITY_WIDTH}}"
-            f"{bond.coupons_per_year:<{COUPONS_WIDTH}}"
-            f"{coupon:<{COUPON_WIDTH}}"
-            f"{bond.portfolio_percent:<{PORTFOLIO_WIDTH}}"
-            f"{current_yield:<{CURRENT_YIELD_WIDTH}}"
-            f"{bond.yield_to_maturity:<{YTM_WIDTH}}"
+            f'{bond.name:<{NAME_WIDTH}.{NAME_WIDTH}}'
+            f'{bond.rating:<{RATING_WIDTH}}'
+            f'{bond.maturity_date:<{MATURITY_WIDTH}}'
+            f'{bond.nominal:<{NOMINAL_WIDTH}}'
+            f'{bond.amortization:<{AMORTIZATION_WIDTH}}'
+            f'{bond.floater:<{FLOATER_WIDTH}}'
+            f'{bond.buy_price:<{BUY_PRICE_WIDTH}}'
+            f'{bond.quantity:<{QUANTITY_WIDTH}}'
+            f'{bond.coupons_per_year:<{COUPONS_WIDTH}}'
+            f'{coupon:<{COUPON_WIDTH}}'
+            f'{bond.portfolio_percent:<{PORTFOLIO_WIDTH}}'
+            f'{current_yield:<{CURRENT_YIELD_WIDTH}}'
+            f'{bond.yield_to_maturity:<{YTM_WIDTH}}'
         )
 
 
@@ -154,5 +149,5 @@ def main() -> None:
         print_bonds_table(bonds)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

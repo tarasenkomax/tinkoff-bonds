@@ -1,0 +1,53 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: double-quote-string-fixer
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: isort (python)
+
+  - repo: https://github.com/hadialqattan/pycln
+    rev: v2.5.0
+    hooks:
+      - id: pycln
+
+  # Note: the YAPF config is found in `.style.yapf` and `.yapfignore`
+  - repo: https://github.com/google/yapf
+    rev: v0.43.0
+    hooks:
+      - id: yapf
+        language: python
+        entry: yapf
+        args: [ -r, -i, -p, -vv ]
+        types: [ python ]
+        additional_dependencies: [ toml ]
+        exclude: ^src/apps/core/migrations/versions/.{12}_.+.py$
+
+  - repo: https://github.com/crate-ci/typos
+    rev: dictgen-v0.3.1
+    hooks:
+      - id: typos
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.9.2
+    hooks:
+      - id: ruff
+        args: [ --fix, --exit-non-zero-on-fix ]
+
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        args: [ --skip-string-normalization ]
+
+exclude: '^.*\.ini|install-poetry\.py|.*migrations/.*|.*\.xml|cryptopro/.+|.*statics/.*$'

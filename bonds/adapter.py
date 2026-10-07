@@ -44,17 +44,13 @@ class TinkoffInvestAdapter:
 
         accounts = self._client.users.get_accounts()
 
-        available_ids = {
-            account.id
-            for account in accounts.accounts
-        }
+        available_ids = {account.id for account in accounts.accounts}
 
         unavailable_ids = set(self._account_ids) - available_ids
 
         if unavailable_ids:
             raise InvestAccountAccessError(
-                "Недоступны брокерские счета: "
-                f"{', '.join(sorted(unavailable_ids))}"
+                'Недоступны брокерские счета: ' f"{', '.join(sorted(unavailable_ids))}"
             )
 
     def get_portfolios(self) -> list:
@@ -84,12 +80,10 @@ class TinkoffInvestAdapter:
             Информация об облигации из SDK.
         """
 
-        return (
-            self._client.instruments.bond_by(
-                id_type=InstrumentIdType.INSTRUMENT_ID_TYPE_FIGI,
-                id=figi,
-            ).instrument
-        )
+        return self._client.instruments.bond_by(
+            id_type=InstrumentIdType.INSTRUMENT_ID_TYPE_FIGI,
+            id=figi,
+        ).instrument
 
     def get_bond_coupons(self, figi: str):
         """

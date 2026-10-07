@@ -22,7 +22,7 @@ class MoneyFormatterMixin:
 
         value = self._money_to_decimal(money)
 
-        return f"{value:.2f} ₽"
+        return f'{value:.2f} ₽'
 
     def _money_to_decimal(
         self,
