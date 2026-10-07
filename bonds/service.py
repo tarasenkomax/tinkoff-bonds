@@ -23,8 +23,9 @@ class BondService(MoneyFormatterMixin):
         self,
     ) -> list[AggregatedBondPosition]:
         """
-        Возвращает агрегированные позиции по облигациям
-        со всех брокерских счетов.
+        Вернуть агрегированные позиции по облигациям со всех счетов.
+
+        :return: список агрегированных позиций по облигациям
         """
 
         portfolios = self._adapter.get_portfolios()
@@ -40,22 +41,14 @@ class BondService(MoneyFormatterMixin):
         positions: list[PortfolioPosition],
     ) -> list[AggregatedBondPosition]:
         """
-        Объединяет позиции одной облигации со всех счетов.
+        Объединить позиции одной облигации со всех счетов.
 
-        Позиции группируются по FIGI.
+        Позиции группируются по FIGI. Количество облигаций
+        складывается. Цена покупки и текущая цена рассчитываются
+        как средневзвешенные по количеству.
 
-        Количество облигаций складывается.
-        Цена покупки рассчитывается как средневзвешенная
-        по количеству.
-        Текущая цена рассчитывается как средневзвешенная
-        по количеству.
-
-        Args:
-            positions:
-                Позиции облигаций со всех счетов.
-
-        Returns:
-            Список агрегированных позиций.
+        :param positions: позиции облигаций со всех счетов
+        :return: список агрегированных позиций
         """
 
         grouped: dict[str, list[PortfolioPosition]] = defaultdict(list)
@@ -96,8 +89,9 @@ class BondService(MoneyFormatterMixin):
 
     def get_bonds(self) -> list[BondInfo]:
         """
-        Возвращает информацию обо всех облигациях
-        со всех брокерских счетов.
+        Вернуть информацию обо всех облигациях со всех счетов.
+
+        :return: список облигаций, отсортированный по имени
         """
 
         bond_positions = self._get_bonds_portfolio()
@@ -124,7 +118,12 @@ class BondService(MoneyFormatterMixin):
 
     @staticmethod
     def _is_bond(position: PortfolioPosition) -> bool:
-        """Проверяет, является ли позиция облигацией."""
+        """
+        Проверить, является ли позиция облигацией.
+
+        :param position: позиция портфеля
+        :return: `True`, если позиция — облигация
+        """
 
         return position.instrument_type == 'bond'
 
@@ -134,14 +133,14 @@ class BondService(MoneyFormatterMixin):
         total_bonds_quantity: int,
     ) -> Decimal:
         """
-        Рассчитывает долю облигации в портфеле.
+        Рассчитать долю облигации в портфеле.
 
-        Доля рассчитывается по количеству облигаций,
-        а не по их стоимости.
+        Доля считается по количеству облигаций, а не по стоимости.
+
+        :param position: агрегированная позиция
+        :param total_bonds_quantity: суммарное количество облигаций в портфеле
+        :return: доля облигации в процентах
         """
-
-        if total_bonds_quantity == 0:
-            return Decimal('0')
 
         return Decimal(position.quantity) / Decimal(total_bonds_quantity) * Decimal('100')
 
@@ -153,36 +152,19 @@ class BondService(MoneyFormatterMixin):
         after_tax: bool = False,
     ) -> Decimal:
         """
-        Рассчитывает приблизительную доходность облигации
-        к погашению.
+        Рассчитать приблизительную доходность облигации к погашению.
 
         Доходность рассчитывается по упрощённой формуле:
+            (годовой купон + (номинал − цена) / лет до погашения) / цена * 100
 
-            (годовой купон + (номинал - цена) / лет до погашения)
-            / цена * 100
+        При `after_tax=True` годовой купон рассчитывается с учётом НДФЛ по ставке `TAX_RATE`. Доход от разницы между
+        ценой покупки и номиналом при этом не изменяется.
 
-        При after_tax=True годовой купон рассчитывается
-        с учётом НДФЛ по ставке TAX_RATE. Доход от разницы
-        между ценой покупки и номиналом при этом не изменяется.
-
-        Args:
-            bond:
-                Информация об облигации, включая номинал,
-                дату погашения и количество купонных выплат в год.
-
-            position:
-                Агрегированная позиция пользователя.
-
-            coupon:
-                Размер купона на одну облигацию до уплаты НДФЛ.
-
-            after_tax:
-                Если True, рассчитывает доходность с учётом НДФЛ
-                на купонный доход. По умолчанию False.
-
-        Returns:
-            Приблизительная доходность облигации к погашению
-            в процентах.
+        :param bond: информация об облигации, включая номинал, дату погашения и количество купонных выплат в год
+        :param position: агрегированная позиция пользователя
+        :param coupon: размер купона на одну облигацию до уплаты НДФЛ
+        :param after_tax: если `True`, рассчитывает доходность с учётом НДФЛ на купонный доход
+        :return: приблизительная доходность к погашению в процентах
         """
 
         if not bond.maturity_date:
@@ -217,7 +199,14 @@ class BondService(MoneyFormatterMixin):
         position: AggregatedBondPosition,
         next_coupon: Decimal,
     ) -> Decimal:
-        """Рассчитывает текущую купонную доходность до НДФЛ."""
+        """
+        Рассчитать текущую купонную доходность до НДФЛ.
+
+        :param bond: информация об облигации
+        :param position: агрегированная позиция пользователя
+        :param next_coupon: размер ближайшего купона
+        :return: купонная доходность в процентах
+        """
 
         price = position.average_position_price
 
@@ -234,7 +223,14 @@ class BondService(MoneyFormatterMixin):
         position: AggregatedBondPosition,
         next_coupon: Decimal,
     ) -> Decimal:
-        """Рассчитывает текущую купонную доходность после НДФЛ."""
+        """
+        Рассчитать текущую купонную доходность после НДФЛ.
+
+        :param bond: информация об облигации
+        :param position: агрегированная позиция пользователя
+        :param next_coupon: размер ближайшего купона
+        :return: купонная доходность в процентах
+        """
 
         price = position.average_position_price
 
@@ -245,44 +241,15 @@ class BondService(MoneyFormatterMixin):
 
         return annual_coupon / price * Decimal('100')
 
-    def _calculate_irr(
-        self,
-        price: Decimal,
-        cash_flows: list[tuple[Decimal, Decimal]],
-    ) -> Decimal:
-        """Рассчитывает IRR методом Ньютона."""
-
-        rate = Decimal('0.15')
-
-        for _ in range(100):
-            value = Decimal('0')
-            derivative = Decimal('0')
-
-            for years, amount in cash_flows:
-                denominator = (Decimal('1') + rate)**years
-                value += amount / denominator
-                derivative -= years * amount / (Decimal('1') + rate)**(years + Decimal('1'))
-
-            diff = value - price
-
-            if abs(diff) < Decimal('0.000001'):
-                return rate
-
-            if derivative == 0:
-                break
-
-            rate -= diff / derivative
-
-        return rate
-
     def _get_next_coupon(
         self,
         figi: str,
     ) -> Decimal:
         """
-        Возвращает размер ближайшего купона.
+        Вернуть размер ближайшего купона.
 
-        Если ближайший купон отсутствует, возвращает 0.
+        :param figi: FIGI облигации
+        :return: размер ближайшего купона или `0`, если купона нет
         """
 
         coupon = self._adapter.get_next_bond_coupon(figi)
@@ -296,7 +263,12 @@ class BondService(MoneyFormatterMixin):
         self,
         coupon: Decimal,
     ) -> Decimal:
-        """Рассчитывает купон после НДФЛ."""
+        """
+        Рассчитать купон после НДФЛ.
+
+        :param coupon: размер купона до налога
+        :return: размер купона после удержания НДФЛ
+        """
 
         return coupon * (Decimal('1') - self.TAX_RATE)
 
@@ -306,7 +278,14 @@ class BondService(MoneyFormatterMixin):
         position: AggregatedBondPosition,
         total_bonds_quantity: int,
     ) -> BondInfo:
-        """Создаёт DTO с информацией об облигации."""
+        """
+        Создать DTO с информацией об облигации.
+
+        :param bond: информация об облигации из SDK
+        :param position: агрегированная позиция пользователя
+        :param total_bonds_quantity: суммарное количество облигаций в портфеле (для расчёта доли)
+        :return: DTO с информацией об облигации
+        """
 
         next_coupon = self._get_next_coupon(position.figi)
 
@@ -357,9 +336,11 @@ class BondService(MoneyFormatterMixin):
 
     def get_portfolio_info(self) -> BondPortfolioInfo:
         """
-        Возвращает сводную информацию по облигационному портфелю.
+        Вернуть сводную информацию по облигационному портфелю.
 
         В расчёте участвуют облигации со всех брокерских счетов.
+
+        :return: DTO со сводной информацией по портфелю
         """
 
         bond_positions = self._get_bonds_portfolio()
@@ -431,7 +412,13 @@ class BondService(MoneyFormatterMixin):
         invested: Decimal,
         current_value: Decimal,
     ) -> Decimal:
-        """Рассчитывает изменение стоимости портфеля в процентах."""
+        """
+        Рассчитать изменение стоимости портфеля в процентах.
+
+        :param invested: сумма вложений
+        :param current_value: текущая стоимость портфеля
+        :return: изменение стоимости в процентах
+        """
 
         if invested <= 0:
             return Decimal('0')

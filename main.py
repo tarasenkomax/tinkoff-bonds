@@ -25,11 +25,10 @@ def _format_percent(
     value: Decimal,
 ) -> str:
     """
-    Форматирует процент с явным знаком.
+    Отформатировать процент с явным знаком.
 
-    Пример:
-        0.12 -> +0.12%
-        -3.45 -> -3.45%
+    :param value: значение в процентах
+    :return: строка вида ``+0.12%`` или ``-3.45%``
     """
 
     return f'{value:+.2f}%'
@@ -39,10 +38,10 @@ def _format_decimal_ru(
     value: Decimal,
 ) -> str:
     """
-    Форматирует Decimal в российский формат.
+    Отформатировать ``Decimal`` в российский формат.
 
-    Пример:
-        1234567.89 -> 1.234.567,89
+    :param value: числовое значение
+    :return: строка вида ``1.234.567,89``
     """
 
     return f'{value:,.2f}'.replace(',', ' ').replace('.', ',').replace(' ', '.')
@@ -52,7 +51,7 @@ def print_portfolio_info(
     portfolio_info: BondPortfolioInfo,
 ) -> None:
     """
-    Выводит сводную информацию по облигационному портфелю.
+    Вывести сводную информацию по облигационному портфелю.
     """
     difference = portfolio_info.current_value - portfolio_info.total_invested
     difference_sign = '+' if difference >= 0 else '-'
@@ -76,7 +75,7 @@ def print_bonds_table(
     bonds: list[BondInfo],
 ) -> None:
     """
-    Выводит облигации в виде таблицы.
+    Вывести облигации в виде таблицы.
     """
 
     header = (
