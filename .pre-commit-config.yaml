@@ -15,11 +15,13 @@ repos:
     hooks:
       - id: isort
         name: isort (python)
+        args: [ --settings-path=poetry/pyproject.toml ]
 
   - repo: https://github.com/hadialqattan/pycln
     rev: v2.5.0
     hooks:
       - id: pycln
+        args: [ --config=poetry/pyproject.toml ]
 
   # Note: the YAPF config is found in `.style.yapf` and `.yapfignore`
   - repo: https://github.com/google/yapf
@@ -28,7 +30,7 @@ repos:
       - id: yapf
         language: python
         entry: yapf
-        args: [ -r, -i, -p, -vv ]
+        args: [ -r, -i, -p, -vv, --style=poetry/pyproject.toml]
         types: [ python ]
         additional_dependencies: [ toml ]
 
@@ -41,12 +43,12 @@ repos:
     rev: v0.9.2
     hooks:
       - id: ruff
-        args: [ --fix, --exit-non-zero-on-fix ]
+        args: [ --fix, --exit-non-zero-on-fix, --config=poetry/pyproject.toml ]
 
   - repo: https://github.com/psf/black
     rev: 24.10.0
     hooks:
       - id: black
-        args: [ --skip-string-normalization ]
+        args: [ --skip-string-normalization, --config=poetry/pyproject.toml ]
 
 exclude: '^.*\.ini|install-poetry\.py|.*migrations/.*|.*\.xml|cryptopro/.+|.*statics/.*$'

@@ -1,14 +1,10 @@
 from decimal import Decimal
 
-from t_tech.invest import Client
-
 from bonds.adapter import TinkoffInvestAdapter
 from bonds.service import BondInfo, BondPortfolioInfo, BondService
-from conf import (
-    TINKOFF_BROKER_ACCOUNT_ID,
-    TINKOFF_IIS_ACCOUNT_ID,
-    TINKOFF_TOKEN,
-)
+from conf import TINKOFF_BROKER_ACCOUNT_ID, TINKOFF_IIS_ACCOUNT_ID, TINKOFF_TOKEN
+from t_tech.invest import Client
+
 
 NAME_WIDTH = 32
 RATING_WIDTH = 10
@@ -66,12 +62,12 @@ def print_portfolio_info(
     print(f"{'Вложено:'} {_format_decimal_ru(portfolio_info.total_invested)} ₽")
     print(
         f"{'Актуальная цена портфеля:'} {_format_decimal_ru(portfolio_info.current_value)} ₽ "
-        f'({_format_percent(portfolio_info.change_percent)} | {difference_str})'
+        f'({_format_percent(portfolio_info.change_percent)} | {difference_str})',
     )
     print(
         f"{'Купонная доходность (до/после):'} "
         f'{portfolio_info.coupon_yield_before_tax:.2f}% / '
-        f'{portfolio_info.coupon_yield_after_tax:.2f}%'
+        f'{portfolio_info.coupon_yield_after_tax:.2f}%',
     )
     print()
 
@@ -105,9 +101,7 @@ def print_bonds_table(
     for bond in bonds:
         coupon = f'{bond.next_coupon_before_tax} / ' f'{bond.next_coupon_after_tax}'
 
-        current_yield = (
-            f'{bond.coupon_yield_before_tax} / ' f'{bond.coupon_yield_after_tax}'
-        )
+        current_yield = f'{bond.coupon_yield_before_tax} / ' f'{bond.coupon_yield_after_tax}'
 
         print(
             f'{bond.name:<{NAME_WIDTH}.{NAME_WIDTH}}'
@@ -122,7 +116,7 @@ def print_bonds_table(
             f'{coupon:<{COUPON_WIDTH}}'
             f'{bond.portfolio_percent:<{PORTFOLIO_WIDTH}}'
             f'{current_yield:<{CURRENT_YIELD_WIDTH}}'
-            f'{bond.yield_to_maturity:<{YTM_WIDTH}}'
+            f'{bond.yield_to_maturity:<{YTM_WIDTH}}',
         )
 
 

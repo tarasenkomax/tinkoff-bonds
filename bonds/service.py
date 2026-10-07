@@ -7,8 +7,8 @@ from decimal import Decimal
 from t_tech.invest.schemas import Bond, PortfolioPosition
 
 from .adapter import TinkoffInvestAdapter
-from .dataclasses import AggregatedBondPosition, BondInfo, BondPortfolioInfo
 from .mixins import MoneyFormatterMixin
+from .schemas import AggregatedBondPosition, BondInfo, BondPortfolioInfo
 
 
 class BondService(MoneyFormatterMixin):
@@ -30,10 +30,7 @@ class BondService(MoneyFormatterMixin):
         portfolios = self._adapter.get_portfolios()
 
         positions = [
-            position
-            for portfolio in portfolios
-            for position in portfolio.positions
-            if self._is_bond(position)
+            position for portfolio in portfolios for position in portfolio.positions if self._is_bond(position)
         ]
 
         return self._aggregate_positions(positions)
@@ -75,14 +72,12 @@ class BondService(MoneyFormatterMixin):
                 continue
 
             total_invested = sum(
-                self._money_to_decimal(position.average_position_price_fifo)
-                * Decimal(position.quantity.units)
+                self._money_to_decimal(position.average_position_price_fifo) * Decimal(position.quantity.units)
                 for position in figi_positions
             )
 
             total_current_value = sum(
-                self._money_to_decimal(position.current_price)
-                * Decimal(position.quantity.units)
+                self._money_to_decimal(position.current_price) * Decimal(position.quantity.units)
                 for position in figi_positions
             )
 
@@ -94,7 +89,7 @@ class BondService(MoneyFormatterMixin):
                     quantity=total_quantity,
                     average_position_price=(total_invested / total_quantity_decimal),
                     current_price=(total_current_value / total_quantity_decimal),
-                )
+                ),
             )
 
         return result
@@ -119,7 +114,7 @@ class BondService(MoneyFormatterMixin):
                     bond=bond,
                     position=position,
                     total_bonds_quantity=total_bonds_quantity,
-                )
+                ),
             )
 
         return sorted(
@@ -148,9 +143,7 @@ class BondService(MoneyFormatterMixin):
         if total_bonds_quantity == 0:
             return Decimal('0')
 
-        return (
-            Decimal(position.quantity) / Decimal(total_bonds_quantity) * Decimal('100')
-        )
+        return Decimal(position.quantity) / Decimal(total_bonds_quantity) * Decimal('100')
 
     def _calculate_yield_to_maturity(
         self,
@@ -248,9 +241,7 @@ class BondService(MoneyFormatterMixin):
         if price <= 0 or next_coupon <= 0:
             return Decimal('0')
 
-        annual_coupon = self._calculate_coupon_after_tax(next_coupon) * Decimal(
-            bond.coupon_quantity_per_year
-        )
+        annual_coupon = self._calculate_coupon_after_tax(next_coupon) * Decimal(bond.coupon_quantity_per_year)
 
         return annual_coupon / price * Decimal('100')
 
@@ -268,11 +259,9 @@ class BondService(MoneyFormatterMixin):
             derivative = Decimal('0')
 
             for years, amount in cash_flows:
-                denominator = (Decimal('1') + rate) ** years
+                denominator = (Decimal('1') + rate)**years
                 value += amount / denominator
-                derivative -= (
-                    years * amount / (Decimal('1') + rate) ** (years + Decimal('1'))
-                )
+                derivative -= years * amount / (Decimal('1') + rate)**(years + Decimal('1'))
 
             diff = value - price
 
@@ -351,9 +340,7 @@ class BondService(MoneyFormatterMixin):
         return BondInfo(
             name=bond.name,
             rating='-',
-            maturity_date=(
-                bond.maturity_date.strftime('%d.%m.%Y') if bond.maturity_date else '-'
-            ),
+            maturity_date=bond.maturity_date.strftime('%d.%m.%Y') if bond.maturity_date else '-',
             nominal=self._format_money(bond.nominal),
             amortization='+' if bond.amortization_flag else '-',
             floater='+' if bond.floating_coupon_flag else '-',
@@ -378,16 +365,10 @@ class BondService(MoneyFormatterMixin):
         bond_positions = self._get_bonds_portfolio()
         total_quantity = sum(position.quantity for position in bond_positions)
         total_invested = sum(
-            position.average_position_price * Decimal(position.quantity)
-            for position in bond_positions
+            position.average_position_price * Decimal(position.quantity) for position in bond_positions
         )
-        current_value = sum(
-            position.current_price * Decimal(position.quantity)
-            for position in bond_positions
-        )
-        change_percent = self._calculate_portfolio_change_percent(
-            invested=total_invested, current_value=current_value
-        )
+        current_value = sum(position.current_price * Decimal(position.quantity) for position in bond_positions)
+        change_percent = self._calculate_portfolio_change_percent(invested=total_invested, current_value=current_value)
         total_coupon_income_before_tax = Decimal('0')
         total_coupon_income_after_tax = Decimal('0')
         weighted_ytm_before_tax = Decimal('0')
@@ -403,9 +384,7 @@ class BondService(MoneyFormatterMixin):
                 continue
 
             annual_coupon_before_tax = coupon * Decimal(bond.coupon_quantity_per_year)
-            annual_coupon_after_tax = self._calculate_coupon_after_tax(
-                coupon
-            ) * Decimal(bond.coupon_quantity_per_year)
+            annual_coupon_after_tax = self._calculate_coupon_after_tax(coupon) * Decimal(bond.coupon_quantity_per_year)
             total_coupon_income_before_tax += annual_coupon_before_tax * quantity
             total_coupon_income_after_tax += annual_coupon_after_tax * quantity
             ytm_before_tax = self._calculate_yield_to_maturity(
@@ -426,27 +405,15 @@ class BondService(MoneyFormatterMixin):
             weighted_ytm_after_tax += ytm_after_tax * invested_amount
 
         coupon_yield_before_tax = (
-            total_coupon_income_before_tax / total_invested * Decimal('100')
-            if total_invested > 0
-            else Decimal('0')
+            total_coupon_income_before_tax / total_invested * Decimal('100') if total_invested > 0 else Decimal('0')
         )
 
         coupon_yield_after_tax = (
-            total_coupon_income_after_tax / total_invested * Decimal('100')
-            if total_invested > 0
-            else Decimal('0')
+            total_coupon_income_after_tax / total_invested * Decimal('100') if total_invested > 0 else Decimal('0')
         )
 
-        portfolio_ytm_before_tax = (
-            weighted_ytm_before_tax / total_invested
-            if total_invested > 0
-            else Decimal('0')
-        )
-        portfolio_ytm_after_tax = (
-            weighted_ytm_after_tax / total_invested
-            if total_invested > 0
-            else Decimal('0')
-        )
+        portfolio_ytm_before_tax = weighted_ytm_before_tax / total_invested if total_invested > 0 else Decimal('0')
+        portfolio_ytm_after_tax = weighted_ytm_after_tax / total_invested if total_invested > 0 else Decimal('0')
 
         return BondPortfolioInfo(
             total_quantity=total_quantity,
