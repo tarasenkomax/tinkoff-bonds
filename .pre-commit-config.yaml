@@ -31,7 +31,6 @@ repos:
         args: [ -r, -i, -p, -vv ]
         types: [ python ]
         additional_dependencies: [ toml ]
-        exclude: ^src/apps/core/migrations/versions/.{12}_.+.py$
 
   - repo: https://github.com/crate-ci/typos
     rev: dictgen-v0.3.1
