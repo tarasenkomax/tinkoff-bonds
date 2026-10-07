@@ -17,52 +17,60 @@ class TinkoffInvestAdapter:
     def __init__(
         self,
         client: Client,
-        account_id: str,
+        account_ids: list[str],
     ) -> None:
         """
         Args:
             client:
                 Авторизованный SDK клиент.
 
-            account_id:
-                Брокерский счёт.
+            account_ids:
+                Идентификаторы брокерских счетов.
         """
 
         self._client = client
-        self._account_id = account_id
+        self._account_ids = account_ids
 
-        self._validate_account()
+        self._validate_accounts()
 
-    def _validate_account(self) -> None:
+    def _validate_accounts(self) -> None:
         """
-        Проверяет доступность счёта.
+        Проверяет доступность всех указанных счетов.
 
         Raises:
             InvestAccountAccessError:
-                Если счёт недоступен.
+                Если хотя бы один счёт недоступен.
         """
 
-        accounts = (self._client.users.get_accounts())
+        accounts = self._client.users.get_accounts()
 
         available_ids = {
             account.id
             for account in accounts.accounts
         }
 
-        if self._account_id not in available_ids:
-            raise InvestAccountAccessError(f"Аккаунт: {self._account_id} недоступен")
+        unavailable_ids = set(self._account_ids) - available_ids
 
-    def get_portfolio(self):
-        """
-        Возвращает портфель пользователя.
-        """
-
-        return (
-            self._client.operations
-            .get_portfolio(
-                account_id=self._account_id
+        if unavailable_ids:
+            raise InvestAccountAccessError(
+                "Недоступны брокерские счета: "
+                f"{', '.join(sorted(unavailable_ids))}"
             )
-        )
+
+    def get_portfolios(self) -> list:
+        """
+        Возвращает портфели по всем брокерским счетам.
+
+        Returns:
+            Список портфелей.
+        """
+
+        return [
+            self._client.operations.get_portfolio(
+                account_id=account_id,
+            )
+            for account_id in self._account_ids
+        ]
 
     def get_bond_by_figi(self, figi: str):
         """
@@ -111,20 +119,18 @@ class TinkoffInvestAdapter:
             Ближайшая купонная выплата.
         """
 
-        response = (
-            self._client.instruments.get_bond_coupons(
-                figi=figi,
-                from_=datetime.now(),
-                to=datetime.now().replace(
-                    year=datetime.now().year + 1
-                ),
-            )
+        now = datetime.now()
+
+        response = self._client.instruments.get_bond_coupons(
+            figi=figi,
+            from_=now,
+            to=now.replace(year=now.year + 1),
         )
 
         if not response.events:
             return None
 
-        return sorted(
+        return min(
             response.events,
             key=lambda coupon: coupon.coupon_date,
-        )[0]
+        )

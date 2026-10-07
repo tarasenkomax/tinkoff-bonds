@@ -4,7 +4,7 @@ from t_tech.invest import Client
 
 from bonds.adapter import TinkoffInvestAdapter
 from bonds.service import BondInfo, BondPortfolioInfo, BondService
-from conf import TINKOFF_ACCOUNT_ID, TINKOFF_TOKEN
+from conf import TINKOFF_TOKEN, TINKOFF_IIS_ACCOUNT_ID, TINKOFF_BROKER_ACCOUNT_ID
 
 NAME_WIDTH = 32
 RATING_WIDTH = 10
@@ -129,7 +129,10 @@ def main() -> None:
     with Client(TINKOFF_TOKEN) as client:
         adapter = TinkoffInvestAdapter(
             client=client,
-            account_id=TINKOFF_ACCOUNT_ID,
+            account_ids=[
+                TINKOFF_BROKER_ACCOUNT_ID,
+                TINKOFF_IIS_ACCOUNT_ID,
+            ],
         )
 
         bond_service = BondService(adapter)

@@ -28,20 +28,16 @@ class BondService(MoneyFormatterMixin):
 
         self._adapter = adapter
 
-    def _get_bonds_portfolio(
-        self,
-    ) -> list[PortfolioPosition]:
+    def _get_bonds_portfolio(self) -> list[PortfolioPosition]:
         """
-        Получает только облигационную часть портфеля.
-
-        Returns:
-            Список позиций облигаций.
+        Возвращает позиции по облигациям со всех брокерских счетов.
         """
 
-        portfolio = self._adapter.get_portfolio()
+        portfolios = self._adapter.get_portfolios()
 
         return [
             position
+            for portfolio in portfolios
             for position in portfolio.positions
             if self._is_bond(position)
         ]
