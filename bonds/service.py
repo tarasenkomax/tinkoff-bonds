@@ -83,7 +83,7 @@ class BondService(MoneyFormatterMixin):
 
             total_invested = sum(
                 self._money_to_decimal(
-                    position.average_position_price
+                    position.average_position_price_fifo
                 )
                 * Decimal(position.quantity.units)
                 for position in figi_positions
