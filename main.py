@@ -96,7 +96,7 @@ def print_bonds_table(
         f"{'Куп./год':<{COUPONS_WIDTH}}"
         f"{'Купон (до/после)':<{COUPON_WIDTH}}"
         f"{'% портфеля':<{PORTFOLIO_WIDTH}}"
-        f"{'Тек. доходность (до/после)':<{CURRENT_YIELD_WIDTH}}"
+        f"{'Куп. доходность (до/после)':<{CURRENT_YIELD_WIDTH}}"
         f"{'YTM (до/после)':<{YTM_WIDTH}}"
     )
 
@@ -104,6 +104,16 @@ def print_bonds_table(
     print("-" * len(header))
 
     for bond in bonds:
+        coupon = (
+            f"{bond.next_coupon_before_tax} / "
+            f"{bond.next_coupon_after_tax}"
+        )
+
+        current_yield = (
+            f"{bond.coupon_yield_before_tax} / "
+            f"{bond.coupon_yield_after_tax}"
+        )
+
         print(
             f"{bond.name:<{NAME_WIDTH}.{NAME_WIDTH}}"
             f"{bond.rating:<{RATING_WIDTH}}"
@@ -114,9 +124,9 @@ def print_bonds_table(
             f"{bond.buy_price:<{BUY_PRICE_WIDTH}}"
             f"{bond.quantity:<{QUANTITY_WIDTH}}"
             f"{bond.coupons_per_year:<{COUPONS_WIDTH}}"
-            f"{bond.next_coupon:<{COUPON_WIDTH}}"
+            f"{coupon:<{COUPON_WIDTH}}"
             f"{bond.portfolio_percent:<{PORTFOLIO_WIDTH}}"
-            f"{bond.coupon_yield:<{CURRENT_YIELD_WIDTH}}"
+            f"{current_yield:<{CURRENT_YIELD_WIDTH}}"
             f"{bond.yield_to_maturity:<{YTM_WIDTH}}"
         )
 
