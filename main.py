@@ -20,6 +20,22 @@ PORTFOLIO_WIDTH = 12
 CURRENT_YIELD_WIDTH = 29
 YTM_WIDTH = 10
 
+BONDS_TABLE_HEADER = (
+    f"{'Название':<{NAME_WIDTH}}"
+    f"{'Рейтинг':<{RATING_WIDTH}}"
+    f"{'Погашение':<{MATURITY_WIDTH}}"
+    f"{'Номинал':<{NOMINAL_WIDTH}}"
+    f"{'Аморт.':<{AMORTIZATION_WIDTH}}"
+    f"{'Флоатер':<{FLOATER_WIDTH}}"
+    f"{'Покупка':<{BUY_PRICE_WIDTH}}"
+    f"{'Кол-во':<{QUANTITY_WIDTH}}"
+    f"{'Куп./год':<{COUPONS_WIDTH}}"
+    f"{'Купон (до/после)':<{COUPON_WIDTH}}"
+    f"{'% портфеля':<{PORTFOLIO_WIDTH}}"
+    f"{'Куп. доходность (до/после)':<{CURRENT_YIELD_WIDTH}}"
+    f"{'YTM (до/после)':<{YTM_WIDTH}}"
+)
+
 
 def _format_percent(
     value: Decimal,
@@ -57,14 +73,14 @@ def print_portfolio_info(
     difference_sign = '+' if difference >= 0 else '-'
     difference_str = f'{difference_sign}{_format_decimal_ru(abs(difference))} ₽'
 
-    print(f"{'Кол-во облигаций:'} {portfolio_info.total_quantity}")
-    print(f"{'Вложено:'} {_format_decimal_ru(portfolio_info.total_invested)} ₽")
+    print(f'Кол-во облигаций: {portfolio_info.total_quantity}')
+    print(f'Вложено: {_format_decimal_ru(portfolio_info.total_invested)} ₽')
     print(
-        f"{'Актуальная цена портфеля:'} {_format_decimal_ru(portfolio_info.current_value)} ₽ "
+        f'Актуальная цена портфеля: {_format_decimal_ru(portfolio_info.current_value)} ₽ '
         f'({_format_percent(portfolio_info.change_percent)} | {difference_str})',
     )
     print(
-        f"{'Купонная доходность (до/после):'} "
+        f'Купонная доходность (до/после): '
         f'{portfolio_info.coupon_yield_before_tax:.2f}% / '
         f'{portfolio_info.coupon_yield_after_tax:.2f}%',
     )
@@ -78,24 +94,8 @@ def print_bonds_table(
     Вывести облигации в виде таблицы.
     """
 
-    header = (
-        f"{'Название':<{NAME_WIDTH}}"
-        f"{'Рейтинг':<{RATING_WIDTH}}"
-        f"{'Погашение':<{MATURITY_WIDTH}}"
-        f"{'Номинал':<{NOMINAL_WIDTH}}"
-        f"{'Аморт.':<{AMORTIZATION_WIDTH}}"
-        f"{'Флоатер':<{FLOATER_WIDTH}}"
-        f"{'Покупка':<{BUY_PRICE_WIDTH}}"
-        f"{'Кол-во':<{QUANTITY_WIDTH}}"
-        f"{'Куп./год':<{COUPONS_WIDTH}}"
-        f"{'Купон (до/после)':<{COUPON_WIDTH}}"
-        f"{'% портфеля':<{PORTFOLIO_WIDTH}}"
-        f"{'Куп. доходность (до/после)':<{CURRENT_YIELD_WIDTH}}"
-        f"{'YTM (до/после)':<{YTM_WIDTH}}"
-    )
-
-    print(header)
-    print('-' * len(header))
+    print(BONDS_TABLE_HEADER)
+    print('-' * len(BONDS_TABLE_HEADER))
 
     for bond in bonds:
         coupon = f'{bond.next_coupon_before_tax} / ' f'{bond.next_coupon_after_tax}'
