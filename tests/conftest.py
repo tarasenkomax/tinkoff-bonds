@@ -10,8 +10,8 @@ def mock_client() -> MagicMock:
     """
     Мок SDK-клиента.
 
-    По умолчанию ``get_accounts`` отдаёт два доступных счёта:
-    ``acc-1`` и ``acc-2``.
+    По умолчанию `get_accounts` отдаёт два доступных счёта:
+    `acc-1` и `acc-2`.
     """
     client = MagicMock()
     client.users.get_accounts.return_value = MagicMock(

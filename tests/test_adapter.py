@@ -104,12 +104,7 @@ class TestValidateAccounts:
 
 
 class TestGetPortfolios:
-    @pytest.fixture
-    def available_accounts(self) -> list[str]:
-        return ['acc-1', 'acc-2', 'acc-3']
-
     """Тесты параллельного получения портфелей."""
-
     def test_empty_accounts_returns_empty_list(
         self,
         mock_client: MagicMock,
