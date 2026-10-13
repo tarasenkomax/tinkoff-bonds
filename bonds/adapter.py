@@ -61,7 +61,7 @@ class TinkoffInvestAdapter:
 
         Запросы выполняются параллельно (gRPC-канал SDK потокобезопасен).
 
-        :return: список портфелей в порядке ``self._account_ids``
+        :return: список портфелей в порядке `self._account_ids`
         """
 
         if not self._account_ids:
@@ -126,7 +126,7 @@ class TinkoffInvestAdapter:
         лишний HTTP-запрос при повторных вызовах.
 
         :param figi: FIGI облигации
-        :return: ближайшая купонная выплата или ``None``, если её нет
+        :return: ближайшая купонная выплата или `None`, если её нет
         """
 
         now = datetime.now(timezone.utc)

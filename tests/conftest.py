@@ -6,28 +6,29 @@ from bonds.adapter import TinkoffInvestAdapter
 
 
 @pytest.fixture
-def mock_client() -> MagicMock:
+def available_accounts(request) -> list[str]:
     """
-    Мок SDK-клиента.
+    Список доступных счетов.
 
-    По умолчанию `get_accounts` отдаёт два доступных счёта:
-    `acc-1` и `acc-2`.
+    По умолчанию — `['acc-1', 'acc-2']`. Тесты могут переопределить
+    значение через `@pytest.mark.parametrize(..., indirect=True)`.
     """
+    return getattr(request, 'param', ['acc-1', 'acc-2'])
+
+
+@pytest.fixture
+def mock_client(available_accounts: list[str]) -> MagicMock:
+    """Мок SDK-клиента с настраиваемым списком доступных счетов."""
     client = MagicMock()
     client.users.get_accounts.return_value = MagicMock(
-        accounts=[MagicMock(id='acc-1'), MagicMock(id='acc-2')],
+        accounts=[MagicMock(id=acc_id) for acc_id in available_accounts],
     )
     return client
 
 
 @pytest.fixture
 def make_adapter(mock_client: MagicMock):
-    """
-    Фабрика адаптеров для тестов.
-
-    Позволяет создавать адаптер с произвольным списком счетов
-    и опциями, переиспользуя один и тот же мок-клиент.
-    """
+    """Фабрика адаптеров для тестов."""
     def _make(
         account_ids: list[str],
         *,
@@ -46,8 +47,7 @@ def make_adapter(mock_client: MagicMock):
 
 @pytest.fixture
 def make_coupon():
-    """
-    Фабрика купонов со сдвигом даты от «сейчас».
+    """Фабрика купонов со сдвигом даты от «сейчас».
 
     :param days: сдвиг в днях (может быть отрицательным)
     """
