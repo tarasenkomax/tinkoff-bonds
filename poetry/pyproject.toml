@@ -121,3 +121,8 @@ classmethod-decorators = [
 warn_required_dynamic_aliases = true
 warn_untyped_fields = true
 init_typed = true
+
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

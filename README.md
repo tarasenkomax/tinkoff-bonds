@@ -98,6 +98,16 @@ TINKOFF_IIS_ACCOUNT_ID = 'идентификатор_ИИС'
 python main.py
 ```
 
+## Запуск тестов:
+```shell
+pytest tests/ -vvvs
+```
+
+## Запуск pre-commit:
+```shell
+pre-commit run --all-files
+```
+
 ---
 
 ## Что отображается

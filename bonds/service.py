@@ -287,7 +287,7 @@ class BondService(MoneyFormatterMixin):
         :return: DTO с информацией об облигации
         """
 
-        next_coupon = self._get_next_coupon(position.figi)
+        next_coupon = self._get_next_coupon(position.instrument_id)
 
         ytm_before_tax = self._calculate_yield_to_maturity(
             bond=bond,
