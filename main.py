@@ -69,6 +69,8 @@ def print_portfolio_info(
 ) -> None:
     """
     Вывести сводную информацию по облигационному портфелю.
+
+    :param portfolio_info: сводная информация по портфелю
     """
     difference = portfolio_info.current_value - portfolio_info.total_invested
     difference_sign = '+' if difference >= 0 else '-'
@@ -84,6 +86,16 @@ def print_portfolio_info(
         f'Купонная доходность (до/после): '
         f'{portfolio_info.coupon_yield_before_tax:.2f}% / '
         f'{portfolio_info.coupon_yield_after_tax:.2f}%',
+    )
+    print(
+        f'Годовая прибыль (до/после): '
+        f'{_format_decimal_ru(portfolio_info.annual_income_before_tax)} ₽ / '
+        f'{_format_decimal_ru(portfolio_info.annual_income_after_tax)} ₽',
+    )
+    print(
+        f'Ежемесячная прибыль (до/после): '
+        f'{_format_decimal_ru(portfolio_info.monthly_income_before_tax)} ₽ / '
+        f'{_format_decimal_ru(portfolio_info.monthly_income_after_tax)} ₽',
     )
     print()
 

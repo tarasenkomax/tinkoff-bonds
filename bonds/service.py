@@ -62,6 +62,12 @@ class BondService(MoneyFormatterMixin):
             metric.annual_coupon_after_tax * Decimal(metric.position.quantity) for metric in metrics
         )
 
+        annual_income_before_tax = total_coupon_before
+        annual_income_after_tax = total_coupon_after
+
+        monthly_income_before_tax = annual_income_before_tax / Decimal(12)
+        monthly_income_after_tax = annual_income_after_tax / Decimal(12)
+
         weighted_ytm_before = sum(
             metric.ytm_before_tax * metric.position.average_position_price * Decimal(metric.position.quantity)
             for metric in metrics
@@ -91,6 +97,10 @@ class BondService(MoneyFormatterMixin):
             coupon_yield_after_tax=coupon_yield_after,
             yield_to_maturity_before_tax=portfolio_ytm_before,
             yield_to_maturity_after_tax=portfolio_ytm_after,
+            annual_income_before_tax=annual_income_before_tax,
+            annual_income_after_tax=annual_income_after_tax,
+            monthly_income_before_tax=monthly_income_before_tax,
+            monthly_income_after_tax=monthly_income_after_tax,
         )
 
     def _collect_bond_metrics(self) -> list[_BondMetrics]:

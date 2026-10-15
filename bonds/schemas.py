@@ -47,6 +47,10 @@ class BondPortfolioInfo:
     coupon_yield_after_tax: Decimal
     yield_to_maturity_before_tax: Decimal
     yield_to_maturity_after_tax: Decimal
+    annual_income_before_tax: Decimal
+    annual_income_after_tax: Decimal
+    monthly_income_before_tax: Decimal
+    monthly_income_after_tax: Decimal
 
 
 @dataclass(frozen=True)
