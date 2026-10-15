@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from bonds.adapter import TinkoffInvestAdapter
 from bonds.service import BondInfo, BondPortfolioInfo, BondService
+from bonds.utils import timed
 from conf import TINKOFF_BROKER_ACCOUNT_ID, TINKOFF_IIS_ACCOUNT_ID, TINKOFF_TOKEN
 from t_tech.invest import Client
 
@@ -119,6 +120,7 @@ def print_bonds_table(
         )
 
 
+@timed
 def main() -> None:
     """
     Точка входа приложения.

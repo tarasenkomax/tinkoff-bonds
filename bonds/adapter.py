@@ -4,9 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from bonds.exceptions import InvestAccountAccessError
 from t_tech.invest import Client, InstrumentIdType
-
-from .exceptions import InvestAccountAccessError
 
 
 class TinkoffInvestAdapter:
@@ -122,7 +121,7 @@ class TinkoffInvestAdapter:
         """
         Вернуть ближайший купон по облигации.
 
-        Реализован поверх :meth:`get_bond_coupons`, чтобы не делать
+        Реализован поверх `get_bond_coupons`, чтобы не делать
         лишний HTTP-запрос при повторных вызовах.
 
         :param figi: FIGI облигации

@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from decimal import Decimal
 
+from t_tech.invest.schemas import Bond
+
 
 @dataclass(frozen=True)
 class AggregatedBondPosition:
@@ -45,3 +47,23 @@ class BondPortfolioInfo:
     coupon_yield_after_tax: Decimal
     yield_to_maturity_before_tax: Decimal
     yield_to_maturity_after_tax: Decimal
+
+
+@dataclass(frozen=True)
+class _BondMetrics:
+    """
+    Сырые метрики по одной облигации.
+
+    Считаются один раз в `BondService._collect_bond_metrics`
+    и переиспользуются в `BondService.get_bonds` и `BondService.get_portfolio_info`.
+    """
+
+    position: AggregatedBondPosition
+    bond: Bond
+    next_coupon: Decimal
+    ytm_before_tax: Decimal
+    ytm_after_tax: Decimal
+    coupon_yield_before_tax: Decimal
+    coupon_yield_after_tax: Decimal
+    annual_coupon_before_tax: Decimal
+    annual_coupon_after_tax: Decimal
