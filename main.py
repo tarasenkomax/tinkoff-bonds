@@ -3,7 +3,7 @@ from decimal import Decimal
 from bonds.adapter import TinkoffInvestAdapter
 from bonds.service import BondInfo, BondPortfolioInfo, BondService
 from bonds.utils import timed
-from conf import TINKOFF_BROKER_ACCOUNT_ID, TINKOFF_IIS_ACCOUNT_ID, TINKOFF_TOKEN
+from conf import TINKOFF_BROKER_ACCOUNT_IDS, TINKOFF_TOKEN
 from t_tech.invest import Client
 
 
@@ -130,6 +130,7 @@ def print_bonds_table(
             f'{current_yield:<{CURRENT_YIELD_WIDTH}}'
             f'{bond.yield_to_maturity:<{YTM_WIDTH}}',
         )
+    print()
 
 
 @timed
@@ -141,10 +142,7 @@ def main() -> None:
     with Client(TINKOFF_TOKEN) as client:
         adapter = TinkoffInvestAdapter(
             client=client,
-            account_ids=[
-                TINKOFF_BROKER_ACCOUNT_ID,
-                TINKOFF_IIS_ACCOUNT_ID,
-            ],
+            account_ids=TINKOFF_BROKER_ACCOUNT_IDS,
         )
 
         bond_service = BondService(adapter)

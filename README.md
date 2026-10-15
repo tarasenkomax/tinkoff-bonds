@@ -83,9 +83,8 @@ pip install -r requirements.txt
 Создайте файл `.env`:
 
 ```env
-TINKOFF_TOKEN = 'ваш_токен_Т-Инвестиций'
-TINKOFF_BROKER_ACCOUNT_ID = 'идентификатор_брокерского_счёта'
-TINKOFF_IIS_ACCOUNT_ID = 'идентификатор_ИИС'
+TINKOFF_TOKEN = ваш_токен_Т-Инвестиций
+TINKOFF_BROKER_ACCOUNT_IDS = идентификаторы_брокерских_счетов,через_запятую
 ```
 
 Токен можно получить в личном кабинете Т-Инвестиций.
