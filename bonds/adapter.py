@@ -51,8 +51,9 @@ class TinkoffInvestAdapter:
 
         unavailable_ids = set(self._account_ids) - available_ids
         if unavailable_ids:
-            raise InvestAccountAccessError('Недоступны брокерские счета: '
-                                           f"{', '.join(sorted(unavailable_ids))}")
+            raise InvestAccountAccessError(
+                f"Недоступны брокерские счета: {', '.join(sorted(unavailable_ids))}",
+            )
 
     def get_portfolios(self) -> list[Any]:
         """
