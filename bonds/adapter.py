@@ -36,6 +36,7 @@ class TinkoffInvestAdapter:
         self._cache_bonds = cache_bonds
 
         self._bond_cache: dict[str, Any] = {}
+        self._coupons_cache: dict[str, list[Any]] = {}
 
         self._validate_accounts()
 
@@ -106,17 +107,25 @@ class TinkoffInvestAdapter:
 
         return instrument
 
-    def get_bond_coupons(self, figi: str):
+    def get_bond_coupons(self, figi: str) -> list[Any]:
         """
         Вернуть список купонов облигации.
 
         :param figi: FIGI облигации
         :return: список купонных выплат
         """
+        if self._cache_bonds:
+            cached = self._coupons_cache.get(figi)
+            if cached is not None:
+                return cached
 
         response = self._client.instruments.get_bond_coupons(figi=figi)
+        events = response.events
 
-        return response.events
+        if self._cache_bonds:
+            self._coupons_cache[figi] = events
+
+        return events
 
     def get_next_bond_coupon(self, figi: str) -> Any | None:
         """
