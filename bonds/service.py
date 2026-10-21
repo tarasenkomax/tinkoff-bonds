@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from decimal import Decimal
 
@@ -19,6 +20,7 @@ class BondService(MoneyFormatterMixin):
     """Сервис получения информации об облигациях пользователя."""
 
     TAX_RATE = Decimal('0.13')
+    MAX_WORKERS = 3
 
     def __init__(self, adapter: TinkoffInvestAdapter) -> None:
         self._adapter = adapter
@@ -107,6 +109,9 @@ class BondService(MoneyFormatterMixin):
         """
         Собрать метрики по всем облигациям портфеля.
 
+        Сетевые вызовы (`get_bond_by_figi`, `get_next_bond_coupon`)
+        выполняются параллельно в пуле потоков.
+
         Сетевые вызовы и расчёты выполняются один раз,
         результат переиспользуется в `get_bonds` и
         `get_portfolio_info`.
@@ -115,10 +120,25 @@ class BondService(MoneyFormatterMixin):
         """
         positions = self._get_bonds_portfolio()
         now = datetime.now(timezone.utc)
+
+        if not positions:
+            return []
+
+        with ThreadPoolExecutor(max_workers=self.MAX_WORKERS) as pool:
+            bonds_future = pool.map(
+                lambda position: self._adapter.get_bond_by_figi(position.figi),
+                positions,
+            )
+            coupons_future = pool.map(
+                lambda position: self._get_next_coupon(position.figi),
+                positions,
+            )
+            bonds = list(bonds_future)
+            coupons = list(coupons_future)
+
         metrics: list[_BondMetrics] = []
 
-        for position in positions:
-            bond = self._adapter.get_bond_by_figi(position.figi)
+        for position, bond, coupon in zip(positions, bonds, coupons):
             if bond is None:
                 continue
 
@@ -126,7 +146,6 @@ class BondService(MoneyFormatterMixin):
             if price <= 0:
                 continue
 
-            coupon = self._get_next_coupon(position.figi)
             annual_coupon_before = coupon * Decimal(bond.coupon_quantity_per_year)
             annual_coupon_after = self._calculate_coupon_after_tax(coupon) * Decimal(
                 bond.coupon_quantity_per_year,
