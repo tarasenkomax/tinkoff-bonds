@@ -7,6 +7,7 @@ from decimal import Decimal
 
 from bonds.adapter import TinkoffInvestAdapter
 from bonds.mixins import MoneyFormatterMixin
+from bonds.ratings import get_rating
 from bonds.schemas import (
     AggregatedBondPosition,
     BondInfo,
@@ -446,7 +447,7 @@ class BondService(MoneyFormatterMixin):
 
         return BondInfo(
             name=bond.name,
-            rating='-',
+            rating=get_rating(bond.name),
             maturity_date=self._format_maturity_date(bond),
             nominal=self._format_money(bond.nominal),
             amortization=self._bool_marker(bond.amortization_flag),
