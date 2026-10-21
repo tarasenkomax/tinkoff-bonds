@@ -7,6 +7,7 @@ from conf import TINKOFF_BROKER_ACCOUNT_IDS, TINKOFF_TOKEN
 from t_tech.invest import Client
 
 
+INDEX_WIDTH = 5
 NAME_WIDTH = 32
 RATING_WIDTH = 10
 MATURITY_WIDTH = 12
@@ -22,6 +23,7 @@ CURRENT_YIELD_WIDTH = 29
 YTM_WIDTH = 10
 
 BONDS_TABLE_HEADER = (
+    f"{'№':<{INDEX_WIDTH}}"
     f"{'Название':<{NAME_WIDTH}}"
     f"{'Рейтинг':<{RATING_WIDTH}}"
     f"{'Погашение':<{MATURITY_WIDTH}}"
@@ -110,12 +112,12 @@ def print_bonds_table(
     print(BONDS_TABLE_HEADER)
     print('-' * len(BONDS_TABLE_HEADER))
 
-    for bond in bonds:
-        coupon = f'{bond.next_coupon_before_tax} / ' f'{bond.next_coupon_after_tax}'
-
+    for index, bond in enumerate(bonds, start=1):
+        coupon = f'{bond.next_coupon_before_tax} / {bond.next_coupon_after_tax}'
         current_yield = f'{bond.coupon_yield_before_tax} / ' f'{bond.coupon_yield_after_tax}'
 
         print(
+            f'{index:<{INDEX_WIDTH}}'
             f'{bond.name:<{NAME_WIDTH}.{NAME_WIDTH}}'
             f'{bond.rating:<{RATING_WIDTH}}'
             f'{bond.maturity_date:<{MATURITY_WIDTH}}'
