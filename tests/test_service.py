@@ -73,35 +73,6 @@ class TestAggregatePositions:
         # (10*800 + 30*1000) / 40 = 950
         assert result[0].average_position_price == Decimal('950')
 
-    # def test_zero_quantity_position_skipped(
-    #     self,
-    #     make_adapter_mock,
-    #     make_position,
-    #     make_figi,
-    # ) -> None:
-    #     """Позиция с нулевым количеством не учитывается в агрегаци."""
-    #     service = BondService(make_adapter_mock())
-    #     figi = make_figi()
-    #     positions = [
-    #         make_position(figi=figi, quantity_units=0),
-    #         make_position(figi=figi, quantity_units=5),
-    #     ]
-    #
-    #     result = service._aggregate_positions(positions)
-    #
-    #     assert result[0].quantity == 5
-
-    # def test_all_zero_quantity_skipped(
-    #     self,
-    #     make_adapter_mock,
-    #     make_position,
-    # ) -> None:
-    #     """Если у всех позиций нулевое количество — результат пустой."""
-    #     service = BondService(make_adapter_mock())
-    #     positions = [make_position(quantity_units=0)]
-    #
-    #     assert service._aggregate_positions(positions) == []
-
     def test_different_figi_separate(
         self,
         make_adapter_mock,
@@ -134,18 +105,7 @@ class TestCalculatePositionPercent:
         result = BondService._calculate_position_percent(position, total_bonds_quantity=100)
 
         assert result == Decimal('25')
-
-        # def test_zero_total_returns_zero(self, make_aggregated_position) -> None:
-        #     """При нулевом общем количестве доля равна нулю (защита от деления на ноль)."""
-        #     position = make_aggregated_position(quantity=10)
-
         assert BondService._calculate_position_percent(position, 0) == Decimal(0)
-
-    # def test_negative_total_returns_zero(self, make_aggregated_position) -> None:
-    #     """При отрицательном общем количестве доля равна нулю."""
-    #     position = make_aggregated_position(quantity=10)
-    #
-    #     assert BondService._calculate_position_percent(position, -5) == Decimal(0)
 
 
 class TestCalculateYieldToMaturity:
@@ -204,70 +164,6 @@ class TestCalculateYieldToMaturity:
 
         assert result == Decimal(0)
 
-    # def test_price_zero_returns_zero(
-    #     self,
-    #     make_adapter_mock,
-    #     make_bond,
-    #     make_aggregated_position,
-    # ) -> None:
-    #     """При нулевой цене покупки YTM равен нулю (защита от деления на ноль)."""
-    #     bond = make_bond()
-    #     position = make_aggregated_position(average_position_price=Decimal('0'))
-    #     service = BondService(make_adapter_mock())
-    #
-    #     result = service._calculate_yield_to_maturity(bond, position, Decimal('50'))
-    #
-    #     assert result == Decimal(0)
-
-    # def test_maturity_in_past_returns_zero(
-    #     self,
-    #     make_adapter_mock,
-    #     make_bond,
-    #     make_aggregated_position,
-    #     fixed_now,
-    # ) -> None:
-    #     """Если дата погашения в прошлом, YTM равен нулю."""
-    #     bond = make_bond(maturity_date=fixed_now - timedelta(days=10))
-    #     position = make_aggregated_position()
-    #     service = BondService(make_adapter_mock())
-    #
-    #     result = service._calculate_yield_to_maturity(
-    #         bond=bond,
-    #         position=position,
-    #         coupon=Decimal('50'),
-    #         now=fixed_now,
-    #     )
-    #
-    #     assert result == Decimal(0)
-
-    # def test_after_tax_reduces_ytm(
-    #     self,
-    #     make_adapter_mock,
-    #     make_bond,
-    #     make_aggregated_position,
-    #     fixed_now,
-    # ) -> None:
-    #     """Доходность после НДФЛ строго меньше доходности до налога."""
-    #     bond = make_bond(maturity_date=fixed_now + timedelta(days=365))
-    #     position = make_aggregated_position(average_position_price=Decimal('900'))
-    #     service = BondService(make_adapter_mock())
-    #
-    #     before = service._calculate_yield_to_maturity(
-    #         bond=bond,
-    #         position=position,
-    #         coupon=Decimal('50'),
-    #         now=fixed_now,
-    #     )
-    #     after = service._calculate_yield_to_maturity(
-    #         bond=bond,
-    #         position=position,
-    #         coupon=Decimal('50'),
-    #         after_tax=True,
-    #         now=fixed_now,
-    #     )
-    #
-    #     assert after < before
-
 
 class TestCalculateCouponYield:
     """Тесты расчёта текущей купонной доходности (до и после НДФЛ)."""
@@ -287,48 +183,6 @@ class TestCalculateCouponYield:
 
         assert result == Decimal('10')
 
-    # def test_before_tax_price_zero_returns_zero(
-    #     self,
-    #     make_adapter_mock,
-    #     make_bond,
-    #     make_aggregated_position,
-    # ) -> None:
-    #     """При нулевой цене покупки купонная доходность равна нулю."""
-    #     bond = make_bond()
-    #     position = make_aggregated_position(average_position_price=Decimal('0'))
-    #     service = BondService(make_adapter_mock())
-    #
-    #     assert service._calculate_coupon_yield_before_tax(bond, position, Decimal('50')) == Decimal(0)
-
-    # def test_before_tax_coupon_zero_returns_zero(
-    #     self,
-    #     make_adapter_mock,
-    #     make_bond,
-    #     make_aggregated_position,
-    # ) -> None:
-    #     """При нулевом купоне купонная доходность равна нулю."""
-    #     bond = make_bond()
-    #     position = make_aggregated_position()
-    #     service = BondService(make_adapter_mock())
-    #
-    #     assert service._calculate_coupon_yield_before_tax(bond, position, Decimal('0')) == Decimal(0)
-
-    # def test_after_tax_less_than_before(
-    #     self,
-    #     make_adapter_mock,
-    #     make_bond,
-    #     make_aggregated_position,
-    # ) -> None:
-    #     """Купонная доходность после НДФЛ меньше доходности до налога."""
-    #     bond = make_bond(coupon_quantity_per_year=2)
-    #     position = make_aggregated_position(average_position_price=Decimal('1000'))
-    #     service = BondService(make_adapter_mock())
-    #
-    #     before = service._calculate_coupon_yield_before_tax(bond, position, Decimal('50'))
-    #     after = service._calculate_coupon_yield_after_tax(bond, position, Decimal('50'))
-    #
-    #     assert after < before
-
 
 class TestCalculateCouponAfterTax:
     """Тесты расчёта купона после удержания НДФЛ."""
@@ -340,12 +194,6 @@ class TestCalculateCouponAfterTax:
 
         # 100 * (1 - 0.13) = 87
         assert result == Decimal('87')
-
-    # def test_zero_coupon(self, make_adapter_mock) -> None:
-    #     """При нулевом купоне результат тоже ноль."""
-    #     service = BondService(make_adapter_mock())
-    #
-    #     assert service._calculate_coupon_after_tax(Decimal('0')) == Decimal('0')
 
 
 class TestCalculatePortfolioChangePercent:
@@ -367,59 +215,6 @@ class TestCalculatePortfolioChangePercent:
         )
 
         assert result == Decimal('-10')
-
-    # def test_zero_invested_returns_zero(self) -> None:
-    #     """При нулевых вложениях результат равен нулю (защита от деления на ноль)."""
-    #     result = BondService._calculate_portfolio_change_percent(
-    #         invested=Decimal('0'),
-    #         current_value=Decimal('1000'),
-    #     )
-    #
-    #     assert result == Decimal(0)
-
-
-# class TestFormatHelpers:
-#     """Тесты вспомогательных форматтеров."""
-#     def test_format_maturity_date_normal(self, make_bond) -> None:
-#         """Дата погашения форматируется в ДД.ММ.ГГГГ."""
-#         bond = make_bond(maturity_date=datetime(2040, 10, 3, tzinfo=timezone.utc))
-#
-#         assert BondService._format_maturity_date(bond) == '03.10.2040'
-
-# def test_format_maturity_date_none(self, make_bond) -> None:
-#     """Без даты погашения возвращается прочерк."""
-#     bond = make_bond()
-#     bond.maturity_date = None
-#
-#     assert BondService._format_maturity_date(bond) == '-'
-
-# def test_format_ytm_without_prefix(self) -> None:
-#     """Без префикса YTM выводится как пара значений через слэш."""
-#     result = BondService._format_ytm(
-#         prefix='',
-#         before_tax=Decimal('15.12'),
-#         after_tax=Decimal('13.15'),
-#     )
-#
-#     assert result == '15.12% / 13.15%'
-
-# def test_format_ytm_with_prefix(self) -> None:
-#     """С префиксом тильды каждое значение YTM получает префикс (для флоатеров)."""
-#     result = BondService._format_ytm(
-#         prefix='~',
-#         before_tax=Decimal('15.12'),
-#         after_tax=Decimal('13.15'),
-#     )
-#
-#     assert result == '~15.12% / ~13.15%'
-
-# def test_bool_marker_true(self) -> None:
-#     """True превращается в '+'. """
-#     assert BondService._bool_marker(True) == '+'
-#
-# def test_bool_marker_false(self) -> None:
-#     """False превращается в '-'. """
-#     assert BondService._bool_marker(False) == '-'
 
 
 class TestCollectBondMetrics:
@@ -446,27 +241,6 @@ class TestCollectBondMetrics:
         service = BondService(adapter)
 
         assert service._collect_bond_metrics() == []
-
-    # def test_skips_position_with_zero_price(
-    #     self,
-    #     make_adapter_mock,
-    #     make_portfolio,
-    #     make_position,
-    #     make_bond,
-    # ) -> None:
-    #     """Позиция с нулевой ценой покупки пропускается (нельзя считать доходность)."""
-    #     position = make_position()
-    #     position.average_position_price_fifo = MagicMock(units=0, nano=0)
-    #     portfolio = make_portfolio(position)
-    #     bond = make_bond()
-    #
-    #     adapter = make_adapter_mock(
-    #         portfolios=[portfolio],
-    #         bonds_by_figi={position.figi: bond},
-    #     )
-    #     service = BondService(adapter)
-    #
-    #     assert service._collect_bond_metrics() == []
 
     def test_collects_metrics_for_valid_position(
         self,
