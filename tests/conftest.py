@@ -4,7 +4,8 @@ from unittest.mock import MagicMock
 
 import pytest
 from bonds.adapter import TinkoffInvestAdapter
-from bonds.schemas import AggregatedBondPosition
+from bonds.report import BondReport
+from bonds.schemas import AggregatedBondPosition, BondInfo, BondPortfolioInfo
 from faker import Faker
 
 
@@ -184,5 +185,100 @@ def make_portfolio():
         portfolio = MagicMock()
         portfolio.positions = list(positions)
         return portfolio
+
+    return _make
+
+
+@pytest.fixture
+def make_report() -> BondReport:
+    """Фабрика отчета (возвращает готовый экземпляр)."""
+    return BondReport()
+
+
+@pytest.fixture
+def make_bond_info():
+    """
+    Фабрика DTO с информацией об облигации.
+
+    :param name: название (по умолчанию генерируется)
+    :param rating: рейтинг (по умолчанию генерируется)
+    :param portfolio_percent: доля облигации (строка, например "2.00%")
+    :param company_portfolio_percent: доля компании (строка или None)
+    """
+    def _make(
+        *,
+        name: str | None = None,
+        rating: str | None = None,
+        maturity_date: str = '03.10.2040',
+        nominal: str = '1000.00 ₽',
+        amortization: str = '-',
+        floater: str = '-',
+        buy_price: str = '900.00 ₽',
+        quantity: int | None = None,
+        coupons_per_year: int | None = None,
+        next_coupon_before_tax: str = '30.00 ₽',
+        next_coupon_after_tax: str = '26.10 ₽',
+        portfolio_percent: str = '2.50%',
+        company_portfolio_percent: str | None = None,
+        yield_to_maturity: str = '15.12% / 13.15%',
+        coupon_yield_before_tax: str = '14.22%',
+        coupon_yield_after_tax: str = '12.37%',
+    ) -> BondInfo:
+        return BondInfo(
+            name=name or f'{fake.company()} БО-П{fake.random_int(1, 99):02d}',
+            rating=rating or fake.random_element(elements=('AAA', 'AA+', 'A', 'BBB+', 'BBB-')),
+            maturity_date=maturity_date,
+            nominal=nominal,
+            amortization=amortization,
+            floater=floater,
+            buy_price=buy_price,
+            quantity=quantity or fake.random_int(1, 100),
+            coupons_per_year=coupons_per_year or fake.random_int(1, 12),
+            next_coupon_before_tax=next_coupon_before_tax,
+            next_coupon_after_tax=next_coupon_after_tax,
+            portfolio_percent=portfolio_percent,
+            company_portfolio_percent=company_portfolio_percent,
+            yield_to_maturity=yield_to_maturity,
+            coupon_yield_before_tax=coupon_yield_before_tax,
+            coupon_yield_after_tax=coupon_yield_after_tax,
+        )
+
+    return _make
+
+
+@pytest.fixture
+def make_portfolio_info():
+    """
+    Фабрика DTO со сводной информацией по портфелю.
+    """
+    def _make(
+        *,
+        total_quantity: int = 100,
+        total_invested: Decimal = Decimal('100000'),
+        current_value: Decimal = Decimal('105000'),
+        change_percent: Decimal = Decimal('5.00'),
+        coupon_yield_before_tax: Decimal = Decimal('15.00'),
+        coupon_yield_after_tax: Decimal = Decimal('13.05'),
+        yield_to_maturity_before_tax: Decimal = Decimal('16.00'),
+        yield_to_maturity_after_tax: Decimal = Decimal('13.92'),
+        annual_income_before_tax: Decimal = Decimal('15000'),
+        annual_income_after_tax: Decimal = Decimal('13050'),
+        monthly_income_before_tax: Decimal = Decimal('1250'),
+        monthly_income_after_tax: Decimal = Decimal('1087.50'),
+    ) -> BondPortfolioInfo:
+        return BondPortfolioInfo(
+            total_quantity=total_quantity,
+            total_invested=total_invested,
+            current_value=current_value,
+            change_percent=change_percent,
+            coupon_yield_before_tax=coupon_yield_before_tax,
+            coupon_yield_after_tax=coupon_yield_after_tax,
+            yield_to_maturity_before_tax=yield_to_maturity_before_tax,
+            yield_to_maturity_after_tax=yield_to_maturity_after_tax,
+            annual_income_before_tax=annual_income_before_tax,
+            annual_income_after_tax=annual_income_after_tax,
+            monthly_income_before_tax=monthly_income_before_tax,
+            monthly_income_after_tax=monthly_income_after_tax,
+        )
 
     return _make
