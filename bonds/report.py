@@ -106,18 +106,51 @@ class BondReport:
         return self._colorize(buy_price, color, self.BUY_PRICE_WIDTH)
 
     def _format_portfolio_percent(self, bond: BondInfo) -> str:
-        """Раскрасить долю портфеля (красный — если больше 5%)."""
-        color = ''
-        val = Decimal(bond.portfolio_percent.replace('%', '').replace(' ', ''))
+        """
+        Раскрасить долю портфеля.
+
+        Красный цвет применяется независимо к проценту облигации и проценту компании, если они > 5%.
+
+        :param bond: информация об облигации
+        :return: отформатированная строка для вывода
+        """
+
+        bond_text = bond.portfolio_percent
+        bond_color = ''
+
+        val = Decimal(bond_text.replace('%', '').replace(' ', ''))
         if val > 5.0:
-            color = self.COLOR_RED
+            bond_color = self.COLOR_RED
+
+        if bond_color:
+            bond_text_colored = f'{bond_color}{bond_text}{self.COLOR_RESET}'
+        else:
+            bond_text_colored = bond_text
 
         if bond.company_portfolio_percent:
-            text = f'{bond.portfolio_percent} ({bond.company_portfolio_percent})'
-        else:
-            text = bond.portfolio_percent
+            company_text = f'({bond.company_portfolio_percent})'
+            company_color = ''
 
-        return self._colorize(text, color, self.PORTFOLIO_WIDTH)
+            val = Decimal(bond.company_portfolio_percent.replace('%', '').replace(' ', ''))
+            if val > 5.0:
+                company_color = self.COLOR_RED
+
+            if company_color:
+                company_text_colored = f'{company_color}{company_text}{self.COLOR_RESET}'
+            else:
+                company_text_colored = company_text
+
+            combined_text = f'{bond_text_colored} {company_text_colored}'
+        else:
+            combined_text = bond_text_colored
+
+        clean_len = len(bond.portfolio_percent)
+        if bond.company_portfolio_percent:
+            clean_len += len(bond.company_portfolio_percent) + 3
+
+        padding = ' ' * max(0, self.PORTFOLIO_WIDTH - clean_len)
+
+        return f'{combined_text}{padding}'
 
     def _format_coupon_yield(self, bond: BondInfo, portfolio_yield: Decimal) -> str:
         """Раскрасить купонную доходность в сравнении с общей по портфелю."""

@@ -248,12 +248,21 @@ class BondService(MoneyFormatterMixin):
     def _get_company_key(bond_name: str) -> str:
         """
         Получить ключ компании (эмитента) для группировки.
-        Берет часть названия до первого номера выпуска.
-        Пример: "РОЛЬФ БО 001Р-07" -> "РОЛЬФ БО"
+
+        Отрезает от названия номер выпуска (например, "001Р-01", "БО-П10", "26254").
+        Пример: "АПРИ БО-002Р-13" -> "АПРИ"
+        Пример: "ВИС ФИНАНС БО-П10" -> "ВИС ФИНАНС"
+        Пример: "АФК Система БО 001Р-30" -> "АФК Система"
         """
-        match = re.search(r'\s\d', bond_name)
+        match = re.search(r'\s+(?:БО[- ]?\d|0\d|П\d|\d)', bond_name)
+
         if match:
             return bond_name[:match.start()].strip()
+
+        match_bo = re.search(r'\s+БО', bond_name)
+        if match_bo:
+            return bond_name[:match_bo.start()].strip()
+
         return bond_name.strip()
 
     def _aggregate_positions(

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from unittest.mock import MagicMock
 
 import pytest
 from bonds.service import BondService
@@ -565,6 +566,42 @@ class TestGetBonds:
         assert result[0].name == bond.name
         assert result[0].quantity == position.quantity.units
 
+    def test_company_percent_assigned(
+        self,
+        make_adapter_mock,
+        make_portfolio,
+        make_position,
+        make_bond,
+        make_coupon,
+    ) -> None:
+        """Процент компании заполняется, если бумаг несколько."""
+        pos1 = make_position(quantity_units=10)
+        pos2 = make_position(quantity_units=20)
+        portfolio = make_portfolio(pos1, pos2)
+
+        bond1 = make_bond(name='АПРИ БО-002Р-13')
+        bond2 = make_bond(name='АПРИ БО-002Р-14')
+        coupon = make_coupon()
+
+        adapter = make_adapter_mock(
+            portfolios=[portfolio],
+            bonds_by_figi={
+                pos1.figi: bond1,
+                pos2.figi: bond2
+            },
+            next_coupons_by_figi={
+                pos1.figi: coupon,
+                pos2.figi: coupon
+            },
+        )
+        service = BondService(adapter)
+
+        bonds = service.get_bonds()
+
+        # Общее количество = 30. Доля компании = 30/30 = 100%
+        assert bonds[0].company_portfolio_percent == '100.00%'
+        assert bonds[1].company_portfolio_percent == '100.00%'
+
 
 class TestGetPortfolioInfo:
     """Тесты публичного метода получения сводной информации по портфелю."""
@@ -646,3 +683,92 @@ class TestGetPortfolioInfo:
         assert info.total_invested == Decimal('9000')  # 900 * 10
         assert info.current_value == Decimal('9500')  # 950 * 10
         assert info.change_percent == pytest.approx(Decimal('5.55'), rel=Decimal('0.01'))
+
+
+class TestGetCompanyKey:
+    """Тесты определения ключа компании (эмитента)."""
+    @pytest.mark.parametrize(
+        'name, expected',
+        [
+            ('АПРИ БО-002Р-13', 'АПРИ'),
+            ('ВИС ФИНАНС БО-П10', 'ВИС ФИНАНС'),
+            ('АФК Система БО 001Р-30', 'АФК Система'),
+            ('АФК Система 002Р-14', 'АФК Система'),
+            ('ОФЗ 26254', 'ОФЗ'),
+            ('РОЛЬФ БО 001Р-07', 'РОЛЬФ'),
+            ('ГТЛК БО 002P-09', 'ГТЛК'),
+            ('Тинькофф', 'Тинькофф'),
+        ],
+    )
+    def test_get_company_key(self, name: str, expected: str) -> None:
+        """Ключ компании правильно отрезает номер выпуска."""
+        assert BondService._get_company_key(name) == expected
+
+
+class TestCalculateCompanyShares:
+    """Тесты расчёта суммарных долей по компаниям."""
+    def test_single_bond_no_share(self, make_adapter_mock, make_position, make_bond) -> None:
+        """Если у компании одна облигация, общий процент не считается (None)."""
+        position = make_position(quantity_units=10)
+        metric = MagicMock(
+            position=position,
+            bond=make_bond(name='Селигдар 001Р-02'),
+        )
+        service = BondService(make_adapter_mock())
+
+        shares = service._calculate_company_shares([metric], total_bonds_quantity=10)
+
+        # Ключ "Селигдар", значение None (так как бумага одна)
+        assert shares['Селигдар'] is None
+
+    def test_multiple_bonds_summed(self, make_adapter_mock, make_bond) -> None:
+        """Если у компании несколько бумаг, их количество суммируется."""
+        pos1 = MagicMock()
+        pos1.quantity = 10
+
+        pos2 = MagicMock()
+        pos2.quantity = 15
+
+        metric1 = MagicMock(position=pos1, bond=make_bond(name='РОЛЬФ БО 001Р-07'))
+        metric2 = MagicMock(position=pos2, bond=make_bond(name='РОЛЬФ БО 001Р-08'))
+
+        service = BondService(make_adapter_mock())
+
+        shares = service._calculate_company_shares(
+            [metric1, metric2],
+            total_bonds_quantity=100,
+        )
+
+        assert shares['РОЛЬФ'] == '25.00%'
+
+
+class TestCollectBondMetricsCache:
+    """Тесты кеширования метрик."""
+    def test_second_call_uses_cache(
+        self,
+        make_adapter_mock,
+        make_portfolio,
+        make_position,
+        make_bond,
+        make_coupon,
+    ) -> None:
+        """Повторный вызов не должен делать новые запросы к адаптеру."""
+        position = make_position()
+        portfolio = make_portfolio(position)
+        bond = make_bond()
+        coupon = make_coupon()
+
+        adapter = make_adapter_mock(
+            portfolios=[portfolio],
+            bonds_by_figi={position.figi: bond},
+            next_coupons_by_figi={position.figi: coupon},
+        )
+        service = BondService(adapter)
+
+        # Первый вызов
+        service._collect_bond_metrics()
+        # Второй вызов
+        service._collect_bond_metrics()
+
+        adapter.get_portfolios.assert_called_once()
+        adapter.get_bond_by_figi.assert_called_once()
