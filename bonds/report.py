@@ -24,7 +24,7 @@ class BondReport:
     QUANTITY_WIDTH = 8
     COUPONS_WIDTH = 10
     COUPON_WIDTH = 22
-    PORTFOLIO_WIDTH = 12
+    PORTFOLIO_WIDTH = 18
     CURRENT_YIELD_WIDTH = 29
     YTM_WIDTH = 10
 
@@ -105,15 +105,19 @@ class BondReport:
 
         return self._colorize(buy_price, color, self.BUY_PRICE_WIDTH)
 
-    def _format_portfolio_percent(self, portfolio_percent: str) -> str:
+    def _format_portfolio_percent(self, bond: BondInfo) -> str:
         """Раскрасить долю портфеля (красный — если больше 5%)."""
         color = ''
-
-        val = Decimal(portfolio_percent.replace('%', '').replace(' ', ''))
+        val = Decimal(bond.portfolio_percent.replace('%', '').replace(' ', ''))
         if val > 5.0:
             color = self.COLOR_RED
 
-        return self._colorize(portfolio_percent, color, self.PORTFOLIO_WIDTH)
+        if bond.company_portfolio_percent:
+            text = f'{bond.portfolio_percent} ({bond.company_portfolio_percent})'
+        else:
+            text = bond.portfolio_percent
+
+        return self._colorize(text, color, self.PORTFOLIO_WIDTH)
 
     def _format_coupon_yield(self, bond: BondInfo, portfolio_yield: Decimal) -> str:
         """Раскрасить купонную доходность в сравнении с общей по портфелю."""
@@ -189,7 +193,7 @@ class BondReport:
 
             maturity = self._format_maturity(bond.maturity_date)
             buy_price = self._format_buy_price(bond.buy_price, bond.nominal)
-            portfolio_percent = self._format_portfolio_percent(bond.portfolio_percent)
+            portfolio_percent = self._format_portfolio_percent(bond)
             coupon_yield = self._format_coupon_yield(bond, portfolio_yield)
 
             print(

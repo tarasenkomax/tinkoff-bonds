@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -25,6 +26,7 @@ class BondService(MoneyFormatterMixin):
 
     def __init__(self, adapter: TinkoffInvestAdapter) -> None:
         self._adapter = adapter
+        self._metrics_cache: list[_BondMetrics] | None = None
 
     def get_bonds(self) -> list[BondInfo]:
         """
@@ -33,10 +35,46 @@ class BondService(MoneyFormatterMixin):
         :return: список облигаций, отсортированный по имени
         """
         metrics = self._collect_bond_metrics()
+        if not metrics:
+            return []
+
         total_bonds_quantity = sum(metric.position.quantity for metric in metrics)
-        bonds = [self._create_bond_info(metric, total_bonds_quantity) for metric in metrics]
+        company_shares = self._calculate_company_shares(metrics, total_bonds_quantity)
+
+        bonds = [
+            self._create_bond_info(
+                metrics=metric,
+                total_bonds_quantity=total_bonds_quantity,
+                company_portfolio_percent=company_shares.get(self._get_company_key(metric.bond.name)),
+            ) for metric in metrics
+        ]
 
         return sorted(bonds, key=lambda bond: bond.name.lower())
+
+    def _calculate_company_shares(
+        self,
+        metrics: list[_BondMetrics],
+        total_bonds_quantity: int,
+    ) -> dict[str, str | None]:
+        """
+        Рассчитать суммарный процент портфеля для компаний, у которых больше одной облигации.
+        """
+        company_stats = defaultdict(lambda: {'quantity': 0, 'bonds': set()})
+
+        for metric in metrics:
+            company = self._get_company_key(metric.bond.name)
+            company_stats[company]['quantity'] += metric.position.quantity
+            company_stats[company]['bonds'].add(metric.bond.name)
+
+        shares = {}
+        for company, stats in company_stats.items():
+            if len(stats['bonds']) > 1:
+                percent = Decimal(stats['quantity']) / Decimal(total_bonds_quantity) * Decimal(100)
+                shares[company] = f'{percent:.2f}%'
+            else:
+                shares[company] = None
+
+        return shares
 
     def get_portfolio_info(self) -> BondPortfolioInfo:
         """
@@ -110,20 +148,23 @@ class BondService(MoneyFormatterMixin):
         """
         Собрать метрики по всем облигациям портфеля.
 
-        Сетевые вызовы (`get_bond_by_figi`, `get_next_bond_coupon`)
-        выполняются параллельно в пуле потоков.
+        Сетевые вызовы (`get_bond_by_figi`, `get_next_bond_coupon`) выполняются параллельно в пуле потоков.
 
-        Сетевые вызовы и расчёты выполняются один раз,
-        результат переиспользуется в `get_bonds` и
-        `get_portfolio_info`.
+        Сетевые вызовы и расчёты выполняются один раз, результат переиспользуется в `get_bonds` и `get_portfolio_info`
+        благодаря кешу `self._metrics_cache`.
 
         :return: список метрик по облигациям
         """
+        if self._metrics_cache is not None:
+            return self._metrics_cache
+
         positions = self._get_bonds_portfolio()
-        now = datetime.now(timezone.utc)
 
         if not positions:
+            self._metrics_cache = []
             return []
+
+        now = datetime.now(timezone.utc)
 
         with ThreadPoolExecutor(max_workers=self.MAX_WORKERS) as pool:
             bonds_future = pool.map(
@@ -185,6 +226,7 @@ class BondService(MoneyFormatterMixin):
                 ),
             )
 
+        self._metrics_cache = metrics
         return metrics
 
     def _get_bonds_portfolio(self) -> list[AggregatedBondPosition]:
@@ -201,6 +243,18 @@ class BondService(MoneyFormatterMixin):
         ]
 
         return self._aggregate_positions(positions)
+
+    @staticmethod
+    def _get_company_key(bond_name: str) -> str:
+        """
+        Получить ключ компании (эмитента) для группировки.
+        Берет часть названия до первого номера выпуска.
+        Пример: "РОЛЬФ БО 001Р-07" -> "РОЛЬФ БО"
+        """
+        match = re.search(r'\s\d', bond_name)
+        if match:
+            return bond_name[:match.start()].strip()
+        return bond_name.strip()
 
     def _aggregate_positions(
         self,
@@ -433,12 +487,14 @@ class BondService(MoneyFormatterMixin):
         self,
         metrics: _BondMetrics,
         total_bonds_quantity: int,
+        company_portfolio_percent: str | None = None,
     ) -> BondInfo:
         """
         Создать DTO с информацией об облигации.
 
         :param metrics: предварительно рассчитанные метрики по облигации
         :param total_bonds_quantity: суммарное количество облигаций в портфеле (для расчёта доли)
+        :param company_portfolio_percent: суммарный процент портфеля для компании
         :return: DTO с информацией об облигации
         """
         bond = metrics.bond
@@ -458,6 +514,7 @@ class BondService(MoneyFormatterMixin):
             next_coupon_before_tax=f'{metrics.next_coupon:.2f} ₽',
             next_coupon_after_tax=f'{self._calculate_coupon_after_tax(metrics.next_coupon):.2f} ₽',
             portfolio_percent=f'{self._calculate_position_percent(position, total_bonds_quantity):.2f}%',
+            company_portfolio_percent=company_portfolio_percent,
             yield_to_maturity=self._format_ytm(
                 prefix=prefix,
                 before_tax=metrics.ytm_before_tax,

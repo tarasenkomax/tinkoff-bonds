@@ -30,6 +30,7 @@ class BondInfo:
     next_coupon_before_tax: str
     next_coupon_after_tax: str
     portfolio_percent: str
+    company_portfolio_percent: str | None
     yield_to_maturity: str
     coupon_yield_before_tax: str
     coupon_yield_after_tax: str
