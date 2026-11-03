@@ -416,8 +416,8 @@ class BondService(MoneyFormatterMixin):
 
         return ytm * Decimal(100)
 
+    @staticmethod
     def _calculate_coupon_yield_before_tax(
-        self,
         bond: Bond,
         position: AggregatedBondPosition,
         next_coupon: Decimal,

@@ -61,7 +61,8 @@ class BondReport:
         self._print_portfolio_info(portfolio_info)
         self._print_bonds_table(bonds, portfolio_info)
 
-    def save_to_file(self, json_str: str, directory: str = 'json_dumps') -> str:
+    @staticmethod
+    def save_to_file(json_str: str, directory: str = 'json_dumps') -> str:
         """
         Сохранить JSON-строку в файл с текущей датой и временем.
 
@@ -201,7 +202,8 @@ class BondReport:
 
         return self._colorize(current_yield_text, color, self.CURRENT_YIELD_WIDTH)
 
-    def _parse_portfolio_info(self, data: dict) -> BondPortfolioInfo:
+    @staticmethod
+    def _parse_portfolio_info(data: dict) -> BondPortfolioInfo:
         """Восстановить DTO BondPortfolioInfo из словаря."""
         return BondPortfolioInfo(
             total_quantity=data['total_quantity'],
@@ -218,7 +220,8 @@ class BondReport:
             monthly_income_after_tax=Decimal(str(data['monthly_income_after_tax'])),
         )
 
-    def _parse_bond_info(self, data: dict) -> BondInfo:
+    @staticmethod
+    def _parse_bond_info(data: dict) -> BondInfo:
         """Восстановить DTO BondInfo из словаря."""
         return BondInfo(
             name=data['name'],
