@@ -1,7 +1,9 @@
+import os
 from decimal import Decimal
 
 from bonds.report import BondReport
 from freezegun import freeze_time
+from tests.conftest import fake
 
 
 class TestFormatBuyPrice:
@@ -81,3 +83,64 @@ class TestPrintPortfolioInfo:
 
         assert BondReport.COLOR_RED in captured.out
         assert '-2.10%' in captured.out
+
+
+class TestPrintFromJson:
+    """Тесты парсинга JSON и вывода отчета."""
+    def test_parses_and_calls_print_methods(self, make_report, portfolio_json_str, capsys) -> None:
+        """Метод должен распарсить JSON и вызвать методы вывода."""
+        report = make_report
+        report.print_from_json(portfolio_json_str)
+
+        captured = capsys.readouterr()
+
+        assert 'Кол-во облигаций: 10' in captured.out
+        assert 'ОФЗ 26254' in captured.out
+
+
+class TestParseMethods:
+    """Тесты восстановления DTO из словарей."""
+    def test_parse_portfolio_info_restores_decimals(self, make_report) -> None:
+        """Проверяем, что Decimal восстанавливается из float с точностью."""
+
+        invested_val = round(fake.pyfloat(min_value=1000, max_value=1000000), 2)
+
+        data = {
+            'total_quantity': fake.random_int(min=1, max=100),
+            'total_invested': invested_val,
+            'current_value': invested_val * 1.1,
+            'change_percent': fake.pyfloat(min_value=-50, max_value=50, right_digits=2),
+            'coupon_yield_before_tax': fake.pyfloat(min_value=0, max_value=30, right_digits=2),
+            'coupon_yield_after_tax': fake.pyfloat(min_value=0, max_value=30, right_digits=2),
+            'yield_to_maturity_before_tax': fake.pyfloat(min_value=0, max_value=30, right_digits=2),
+            'yield_to_maturity_after_tax': fake.pyfloat(min_value=0, max_value=30, right_digits=2),
+            'annual_income_before_tax': fake.pyfloat(min_value=1000, max_value=100000, right_digits=2),
+            'annual_income_after_tax': fake.pyfloat(min_value=1000, max_value=100000, right_digits=2),
+            'monthly_income_before_tax': fake.pyfloat(min_value=100, max_value=10000, right_digits=2),
+            'monthly_income_after_tax': fake.pyfloat(min_value=100, max_value=10000, right_digits=2),
+        }
+
+        result = make_report._parse_portfolio_info(data)
+
+        assert isinstance(result.total_invested, Decimal)
+        assert isinstance(result.change_percent, Decimal)
+        assert isinstance(result.annual_income_before_tax, Decimal)
+
+        assert result.total_invested == Decimal(str(invested_val))
+
+
+class TestSaveToFile:
+    """Тесты сохранения JSON в файл."""
+    def test_saves_file_and_returns_path(self, make_report, tmp_path) -> None:
+        """Проверяем, что файл создается и путь возвращается корректно."""
+        json_str = '{"test": 123}'
+        directory = tmp_path / 'json_dumps'
+
+        filepath = make_report.save_to_file(json_str, directory=str(directory))
+
+        assert os.path.exists(filepath)
+        assert 'portfolio_' in filepath
+        assert filepath.endswith('.json')
+
+        with open(filepath, 'r', encoding='utf-8') as f:
+            assert f.read() == json_str

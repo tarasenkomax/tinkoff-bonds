@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -282,3 +283,14 @@ def make_portfolio_info():
         )
 
     return _make
+
+
+@pytest.fixture
+def portfolio_json_str() -> str:
+    """
+    Возвращает содержимое тестового JSON-файла с портфелем.
+    """
+    fixture_path = Path(__file__).parent / 'fixtures' / 'portfolio.json'
+
+    with open(fixture_path, 'r', encoding='utf-8') as f:
+        return f.read()

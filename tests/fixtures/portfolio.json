@@ -1,0 +1,36 @@
+{
+    "portfolio_info": {
+        "total_quantity": 10,
+        "total_invested": 9000.0,
+        "current_value": 9500.0,
+        "change_percent": 5.56,
+        "coupon_yield_before_tax": 6.67,
+        "coupon_yield_after_tax": 5.80,
+        "yield_to_maturity_before_tax": 7.41,
+        "yield_to_maturity_after_tax": 6.45,
+        "annual_income_before_tax": 600.0,
+        "annual_income_after_tax": 522.0,
+        "monthly_income_before_tax": 50.0,
+        "monthly_income_after_tax": 43.5
+    },
+    "bonds": [
+        {
+            "name": "ОФЗ 26254",
+            "rating": "AAA",
+            "maturity_date": "03.10.2040",
+            "nominal": "1000.00 ₽",
+            "amortization": "-",
+            "floater": "-",
+            "buy_price": "900.00 ₽",
+            "quantity": 10,
+            "coupons_per_year": 2,
+            "next_coupon_before_tax": "30.00 ₽",
+            "next_coupon_after_tax": "26.10 ₽",
+            "portfolio_percent": "100.00%",
+            "company_portfolio_percent": null,
+            "yield_to_maturity": "7.41% / 6.45%",
+            "coupon_yield_before_tax": "6.67%",
+            "coupon_yield_after_tax": "5.80%"
+        }
+    ]
+}

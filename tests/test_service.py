@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock
@@ -546,3 +547,62 @@ class TestCollectBondMetricsCache:
 
         adapter.get_portfolios.assert_called_once()
         adapter.get_bond_by_figi.assert_called_once()
+
+
+class TestGetPortfolioJson:
+    """Тесты формирования JSON."""
+    def test_valid_json_structure(
+        self,
+        make_adapter_mock,
+        make_portfolio,
+        make_position,
+        make_bond,
+        make_coupon,
+    ) -> None:
+        """JSON содержит ключи portfolio_info и bonds."""
+        position = make_position()
+        portfolio = make_portfolio(position)
+        bond = make_bond()
+        coupon = make_coupon()
+
+        adapter = make_adapter_mock(
+            portfolios=[portfolio],
+            bonds_by_figi={position.figi: bond},
+            next_coupons_by_figi={position.figi: coupon},
+        )
+        service = BondService(adapter)
+
+        json_str = service.get_portfolio_json()
+        data = json.loads(json_str)
+
+        assert 'portfolio_info' in data
+        assert 'bonds' in data
+        assert isinstance(data['bonds'], list)
+        assert len(data['bonds']) == 1
+
+    def test_decimal_converted_to_float(
+        self,
+        make_adapter_mock,
+        make_portfolio,
+        make_position,
+        make_bond,
+        make_coupon,
+    ) -> None:
+        """Проверяем, что Decimal конвертируется в числа, а не строки."""
+        position = make_position()
+        portfolio = make_portfolio(position)
+        bond = make_bond()
+        coupon = make_coupon()
+
+        adapter = make_adapter_mock(
+            portfolios=[portfolio],
+            bonds_by_figi={position.figi: bond},
+            next_coupons_by_figi={position.figi: coupon},
+        )
+        service = BondService(adapter)
+
+        json_str = service.get_portfolio_json()
+        data = json.loads(json_str)
+
+        assert isinstance(data['portfolio_info']['total_invested'], (int, float))
+        assert isinstance(data['portfolio_info']['change_percent'], (int, float))
