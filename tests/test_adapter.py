@@ -2,10 +2,11 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import pytest
-from bonds.adapter import TinkoffInvestAdapter
-from bonds.exceptions import InvestAccountAccessError
 from freezegun import freeze_time
 from t_tech.invest import InstrumentIdType
+
+from bonds.adapter import TinkoffInvestAdapter
+from bonds.exceptions import InvestAccountAccessError
 
 
 class TestValidateAccounts:

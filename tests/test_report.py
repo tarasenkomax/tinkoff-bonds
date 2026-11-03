@@ -1,8 +1,9 @@
 import os
 from decimal import Decimal
 
-from bonds.report import BondReport
 from freezegun import freeze_time
+
+from bonds.report import BondReport
 from tests.conftest import fake
 
 

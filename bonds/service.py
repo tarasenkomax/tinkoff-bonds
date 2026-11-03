@@ -7,6 +7,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from decimal import Decimal
 
+from t_tech.invest.schemas import Bond, PortfolioPosition
+
 from bonds.adapter import TinkoffInvestAdapter
 from bonds.mixins import MoneyFormatterMixin
 from bonds.ratings import get_rating
@@ -16,7 +18,6 @@ from bonds.schemas import (
     BondPortfolioInfo,
     _BondMetrics,
 )
-from t_tech.invest.schemas import Bond, PortfolioPosition
 
 
 class BondService(MoneyFormatterMixin):

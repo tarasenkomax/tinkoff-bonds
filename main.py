@@ -1,9 +1,10 @@
+from t_tech.invest import Client
+
 from bonds.adapter import TinkoffInvestAdapter
 from bonds.report import BondReport
 from bonds.service import BondService
 from bonds.utils import timed
 from conf import TINKOFF_BROKER_ACCOUNT_IDS, TINKOFF_TOKEN
-from t_tech.invest import Client
 
 
 @timed

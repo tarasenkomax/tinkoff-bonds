@@ -4,8 +4,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from bonds.exceptions import InvestAccountAccessError
 from t_tech.invest import Client, InstrumentIdType
+
+from bonds.exceptions import InvestAccountAccessError
 
 
 class TinkoffInvestAdapter:

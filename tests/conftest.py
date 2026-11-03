@@ -4,10 +4,11 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from faker import Faker
+
 from bonds.adapter import TinkoffInvestAdapter
 from bonds.report import BondReport
 from bonds.schemas import AggregatedBondPosition, BondInfo, BondPortfolioInfo
-from faker import Faker
 
 
 fake = Faker('ru_RU')
