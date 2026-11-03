@@ -63,7 +63,7 @@ class TestPrintPortfolioInfo:
         portfolio = make_portfolio_info(change_percent=Decimal('5.00'))
 
         report = BondReport()
-        report.print_portfolio_info(portfolio)
+        report._print_portfolio_info(portfolio)
 
         captured = capsys.readouterr()
 
@@ -75,7 +75,7 @@ class TestPrintPortfolioInfo:
         portfolio = make_portfolio_info(change_percent=Decimal('-2.10'))
 
         report = BondReport()
-        report.print_portfolio_info(portfolio)
+        report._print_portfolio_info(portfolio)
 
         captured = capsys.readouterr()
 

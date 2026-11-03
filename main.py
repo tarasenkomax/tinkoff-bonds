@@ -8,24 +8,21 @@ from t_tech.invest import Client
 
 @timed
 def main() -> None:
-    """
-    Точка входа приложения.
-    """
-
+    """Точка входа приложения."""
     with Client(TINKOFF_TOKEN) as client:
         adapter = TinkoffInvestAdapter(
             client=client,
             account_ids=TINKOFF_BROKER_ACCOUNT_IDS,
         )
-
-        bond_service = BondService(adapter)
+        service = BondService(adapter)
         report = BondReport()
 
-        portfolio_info = bond_service.get_portfolio_info()
-        bonds = bond_service.get_bonds()
+        portfolio_json = service.get_portfolio_json()
 
-        report.print_portfolio_info(portfolio_info)
-        report.print_bonds_table(bonds, portfolio_info)
+        filepath = report.save_to_file(portfolio_json)
+        print(f'[INFO] Данные сохранены в файл: {filepath}')
+
+        report.print_from_json(portfolio_json)
 
 
 if __name__ == '__main__':

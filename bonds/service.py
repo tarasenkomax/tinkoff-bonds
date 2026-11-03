@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -28,7 +29,24 @@ class BondService(MoneyFormatterMixin):
         self._adapter = adapter
         self._metrics_cache: list[_BondMetrics] | None = None
 
-    def get_bonds(self) -> list[BondInfo]:
+    def get_portfolio_json(self, indent: int | None = 4) -> str:
+        """
+        Сформировать единый JSON со сводной информацией и списком облигаций.
+
+        :param indent: отступы для форматирования JSON (None для минификации)
+        :return: JSON-строка
+        """
+        portfolio_info = self._get_portfolio_info()
+        bonds = self._get_bonds()
+
+        payload = {
+            'portfolio_info': portfolio_info.to_dict(),
+            'bonds': [bond.to_dict() for bond in bonds],
+        }
+
+        return json.dumps(payload, indent=indent, ensure_ascii=False, default=str)
+
+    def _get_bonds(self) -> list[BondInfo]:
         """
         Вернуть информацию обо всех облигациях со всех счетов.
 
@@ -76,7 +94,7 @@ class BondService(MoneyFormatterMixin):
 
         return shares
 
-    def get_portfolio_info(self) -> BondPortfolioInfo:
+    def _get_portfolio_info(self) -> BondPortfolioInfo:
         """
         Вернуть сводную информацию по облигационному портфелю.
 
@@ -150,7 +168,7 @@ class BondService(MoneyFormatterMixin):
 
         Сетевые вызовы (`get_bond_by_figi`, `get_next_bond_coupon`) выполняются параллельно в пуле потоков.
 
-        Сетевые вызовы и расчёты выполняются один раз, результат переиспользуется в `get_bonds` и `get_portfolio_info`
+        Сетевые вызовы и расчёты выполняются один раз, результат переиспользуется в `_get_bonds` и `_get_portfolio_info`
         благодаря кешу `self._metrics_cache`.
 
         :return: список метрик по облигациям

@@ -1,3 +1,5 @@
+import json
+import os
 from datetime import datetime
 from decimal import Decimal
 
@@ -44,6 +46,38 @@ class BondReport:
         f"{'Куп. доходность (до/после)':<{CURRENT_YIELD_WIDTH}}"
         f"{'YTM (до/после)':<{YTM_WIDTH}}"
     )
+
+    def print_from_json(self, json_str: str) -> None:
+        """
+        Разобрать JSON и вывести отчет.
+
+        :param json_str: JSON-строка, полученная из BondService
+        """
+        data = json.loads(json_str)
+
+        portfolio_info = self._parse_portfolio_info(data['portfolio_info'])
+        bonds = [self._parse_bond_info(b) for b in data['bonds']]
+
+        self._print_portfolio_info(portfolio_info)
+        self._print_bonds_table(bonds, portfolio_info)
+
+    def save_to_file(self, json_str: str, directory: str = 'json_dumps') -> str:
+        """
+        Сохранить JSON-строку в файл с текущей датой и временем.
+
+        :param json_str: JSON-строка с данными портфеля
+        :param directory: папка для сохранения
+        :return: путь к сохраненному файлу
+        """
+        os.makedirs(directory, exist_ok=True)
+
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        filepath = os.path.join(directory, f'portfolio_{timestamp}.json')
+
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(json_str)
+
+        return filepath
 
     @staticmethod
     def _format_percent(value: Decimal) -> str:
@@ -167,7 +201,45 @@ class BondReport:
 
         return self._colorize(current_yield_text, color, self.CURRENT_YIELD_WIDTH)
 
-    def print_portfolio_info(self, portfolio_info: BondPortfolioInfo) -> None:
+    def _parse_portfolio_info(self, data: dict) -> BondPortfolioInfo:
+        """Восстановить DTO BondPortfolioInfo из словаря."""
+        return BondPortfolioInfo(
+            total_quantity=data['total_quantity'],
+            total_invested=Decimal(str(data['total_invested'])),
+            current_value=Decimal(str(data['current_value'])),
+            change_percent=Decimal(str(data['change_percent'])),
+            coupon_yield_before_tax=Decimal(str(data['coupon_yield_before_tax'])),
+            coupon_yield_after_tax=Decimal(str(data['coupon_yield_after_tax'])),
+            yield_to_maturity_before_tax=Decimal(str(data['yield_to_maturity_before_tax'])),
+            yield_to_maturity_after_tax=Decimal(str(data['yield_to_maturity_after_tax'])),
+            annual_income_before_tax=Decimal(str(data['annual_income_before_tax'])),
+            annual_income_after_tax=Decimal(str(data['annual_income_after_tax'])),
+            monthly_income_before_tax=Decimal(str(data['monthly_income_before_tax'])),
+            monthly_income_after_tax=Decimal(str(data['monthly_income_after_tax'])),
+        )
+
+    def _parse_bond_info(self, data: dict) -> BondInfo:
+        """Восстановить DTO BondInfo из словаря."""
+        return BondInfo(
+            name=data['name'],
+            rating=data['rating'],
+            maturity_date=data['maturity_date'],
+            nominal=data['nominal'],
+            amortization=data['amortization'],
+            floater=data['floater'],
+            buy_price=data['buy_price'],
+            quantity=data['quantity'],
+            coupons_per_year=data['coupons_per_year'],
+            next_coupon_before_tax=data['next_coupon_before_tax'],
+            next_coupon_after_tax=data['next_coupon_after_tax'],
+            portfolio_percent=data['portfolio_percent'],
+            company_portfolio_percent=data.get('company_portfolio_percent'),
+            yield_to_maturity=data['yield_to_maturity'],
+            coupon_yield_before_tax=data['coupon_yield_before_tax'],
+            coupon_yield_after_tax=data['coupon_yield_after_tax'],
+        )
+
+    def _print_portfolio_info(self, portfolio_info: BondPortfolioInfo) -> None:
         """
         Вывести сводную информацию по облигационному портфелю.
 
@@ -209,7 +281,7 @@ class BondReport:
         )
         print()
 
-    def print_bonds_table(self, bonds: list[BondInfo], portfolio_info: BondPortfolioInfo) -> None:
+    def _print_bonds_table(self, bonds: list[BondInfo], portfolio_info: BondPortfolioInfo) -> None:
         """
         Вывести облигации в виде таблицы.
 

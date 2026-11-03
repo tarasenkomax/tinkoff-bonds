@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from decimal import Decimal
 
 from t_tech.invest.schemas import Bond
@@ -35,6 +35,10 @@ class BondInfo:
     coupon_yield_before_tax: str
     coupon_yield_after_tax: str
 
+    def to_dict(self) -> dict:
+        """Преобразовать DTO в словарь для JSON."""
+        return asdict(self)
+
 
 @dataclass(frozen=True)
 class BondPortfolioInfo:
@@ -53,14 +57,22 @@ class BondPortfolioInfo:
     monthly_income_before_tax: Decimal
     monthly_income_after_tax: Decimal
 
+    def to_dict(self) -> dict:
+        """Преобразовать DTO в словарь."""
+        data = asdict(self)
+        for key, value in data.items():
+            if isinstance(value, Decimal):
+                data[key] = float(value)
+        return data
+
 
 @dataclass(frozen=True)
 class _BondMetrics:
     """
     Сырые метрики по одной облигации.
 
-    Считаются один раз в `BondService._collect_bond_metrics`
-    и переиспользуются в `BondService.get_bonds` и `BondService.get_portfolio_info`.
+    Считаются один раз в `BondService._collect_bond_metrics`и переиспользуются в
+    `BondService._get_bonds` и `BondService._get_portfolio_info`.
     """
 
     position: AggregatedBondPosition

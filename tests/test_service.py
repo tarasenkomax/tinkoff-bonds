@@ -283,7 +283,7 @@ class TestGetBonds:
         """Пустой портфель — пустой список."""
         service = BondService(make_adapter_mock(portfolios=[]))
 
-        assert service.get_bonds() == []
+        assert service._get_bonds() == []
 
     def test_sorted_by_name_case_insensitive(
         self,
@@ -309,7 +309,7 @@ class TestGetBonds:
         )
         service = BondService(adapter)
 
-        result = service.get_bonds()
+        result = service._get_bonds()
 
         assert [bond.name for bond in result] == ['АВТОБАН-Финанс БО-П08', 'Балтийский лизинг БО-П11']
 
@@ -334,7 +334,7 @@ class TestGetBonds:
         )
         service = BondService(adapter)
 
-        result = service.get_bonds()
+        result = service._get_bonds()
 
         assert len(result) == 1
         assert result[0].name == bond.name
@@ -370,7 +370,7 @@ class TestGetBonds:
         )
         service = BondService(adapter)
 
-        bonds = service.get_bonds()
+        bonds = service._get_bonds()
 
         # Общее количество = 30. Доля компании = 30/30 = 100%
         assert bonds[0].company_portfolio_percent == '100.00%'
@@ -383,7 +383,7 @@ class TestGetPortfolioInfo:
         """Пустой портфель — все суммы и проценты равны нулю."""
         service = BondService(make_adapter_mock(portfolios=[]))
 
-        info = service.get_portfolio_info()
+        info = service._get_portfolio_info()
 
         assert info.total_quantity == 0
         assert info.total_invested == Decimal(0)
@@ -419,7 +419,7 @@ class TestGetPortfolioInfo:
         )
         service = BondService(adapter)
 
-        info = service.get_portfolio_info()
+        info = service._get_portfolio_info()
 
         assert info.annual_income_before_tax == Decimal('600')
         assert info.monthly_income_before_tax == Decimal('50')
@@ -451,7 +451,7 @@ class TestGetPortfolioInfo:
         )
         service = BondService(adapter)
 
-        info = service.get_portfolio_info()
+        info = service._get_portfolio_info()
 
         assert info.total_quantity == 10
         assert info.total_invested == Decimal('9000')  # 900 * 10
