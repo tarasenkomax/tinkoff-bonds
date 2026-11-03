@@ -13,6 +13,7 @@
 - Агрегация позиций по FIGI со всех брокерских счетов
 - Параллельные запросы портфелей (gRPC-канал SDK потокобезопасен)
 - Кеширование справочных данных по облигациям
+- Автоматическое сохранение данных портфеля в JSON-файл (папка `json_dumps/`).
 - Общая информация по портфелю:
   - количество облигаций;
   - сумма вложений;
@@ -57,6 +58,47 @@
 ```
 
 ---
+## Пример JSON-выгрузки
+```json
+{
+    "portfolio_info": {
+        "total_quantity": 10,
+        "total_invested": 9000.0,
+        "current_value": 9500.0,
+        "change_percent": 5.56,
+        "coupon_yield_before_tax": 6.67,
+        "coupon_yield_after_tax": 5.80,
+        "yield_to_maturity_before_tax": 7.41,
+        "yield_to_maturity_after_tax": 6.45,
+        "annual_income_before_tax": 600.0,
+        "annual_income_after_tax": 522.0,
+        "monthly_income_before_tax": 50.0,
+        "monthly_income_after_tax": 43.5
+    },
+    "bonds": [
+        {
+            "name": "ОФЗ 26254",
+            "rating": "AAA",
+            "maturity_date": "03.10.2040",
+            "nominal": "1000.00 ₽",
+            "amortization": "-",
+            "floater": "-",
+            "buy_price": "900.00 ₽",
+            "quantity": 10,
+            "coupons_per_year": 2,
+            "next_coupon_before_tax": "30.00 ₽",
+            "next_coupon_after_tax": "26.10 ₽",
+            "portfolio_percent": "100.00%",
+            "company_portfolio_percent": null,
+            "yield_to_maturity": "7.41% / 6.45%",
+            "coupon_yield_before_tax": "6.67%",
+            "coupon_yield_after_tax": "5.80%"
+        }
+    ]
+}
+
+```
+---
 
 ## Установка
 
@@ -92,6 +134,14 @@ SSL_TBANK_VERIFY=True
 Токен можно получить в личном кабинете Т-Инвестиций.
 
 ---
+## Архитектура
+
+Приложение разделено на слои:
+
+1. **`TinkoffInvestAdapter`** — обертка над SDK. Занимается только сетевыми запросами.
+2. **`BondService`** — бизнес-логика. Считает метрики и формирует единый JSON (`get_portfolio_json`).
+3. **`BondReport`** — представление. Парсит JSON и выводит данные в консоль.
+---
 
 ## Запуск
 
@@ -108,6 +158,15 @@ pytest tests/ -vvvs
 ```shell
 pre-commit run --all-files
 ```
+
+## Сохранение данных
+
+При каждом запуске приложение не только выводит таблицу в консоль, но и сохраняет полные данные портфеля в формате JSON в папку `json_dumps/`.
+
+Имя файла формируется автоматически и содержит дату и время:
+`json_dumps/portfolio_2023-10-25_14-30-15.json`
+
+> Папка `json_dumps/` добавлена в `.gitignore`, так как содержит персональные финансовые данные.
 
 ---
 
@@ -128,7 +187,7 @@ pre-commit run --all-files
 | Поле | Описание |
 |------|----------|
 | Название | Наименование выпуска |
-| Рейтинг | Кредитный рейтинг (заполняется вручную в ratings.py)|
+| Рейтинг | Кредитный рейтинг (заполняется вручную в bonds/ratings.py)|
 | Погашение | Дата погашения |
 | Номинал | Номинальная стоимость |
 | Аморт. | Наличие амортизации |

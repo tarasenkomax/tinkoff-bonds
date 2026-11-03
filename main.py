@@ -19,9 +19,7 @@ def main() -> None:
 
         portfolio_json = service.get_portfolio_json()
 
-        filepath = report.save_to_file(portfolio_json)
-        print(f'[INFO] Данные сохранены в файл: {filepath}')
-
+        report.save_to_file(portfolio_json)
         report.print_from_json(portfolio_json)
 
 
