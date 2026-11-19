@@ -8,7 +8,12 @@ from faker import Faker
 
 from bonds.adapter import TinkoffInvestAdapter
 from bonds.report import BondReport
-from bonds.schemas import AggregatedBondPosition, BondInfo, BondPortfolioInfo
+from bonds.schemas import (
+    AggregatedBondPosition,
+    BondInfo,
+    BondPortfolioInfo,
+    _BondMetrics,
+)
 
 
 fake = Faker('ru_RU')
@@ -65,19 +70,17 @@ def make_adapter(mock_client: MagicMock):
 
 @pytest.fixture
 def make_coupon():
-    """
-    Фабрика купонов.
-
-    :param days: сдвиг даты купона от «сейчас» в днях (может быть отрицательным)
-    :param pay_one_bond_units: размер купона в целых рублях
-    """
+    """Фабрика купонов."""
     def _make(
         days: int = 30,
         *,
         pay_one_bond_units: int = 10,
+        coupon_date: datetime | None = None,
     ) -> MagicMock:
         coupon = MagicMock()
-        coupon.coupon_date = datetime.now(timezone.utc) + timedelta(days=days)
+        coupon.coupon_date = (
+            coupon_date if coupon_date is not None else datetime.now(timezone.utc) + timedelta(days=days)
+        )
         coupon.pay_one_bond = MagicMock(units=pay_one_bond_units, nano=0)
         return coupon
 
@@ -170,11 +173,17 @@ def make_adapter_mock():
         portfolios: list[MagicMock] | None = None,
         bonds_by_figi: dict[str, MagicMock | None] | None = None,
         next_coupons_by_figi: dict[str, MagicMock | None] | None = None,
+        coupon_events_by_figi: dict[str, list[MagicMock]] | None = None,
+        operations: list[MagicMock] | None = None,
     ) -> MagicMock:
         adapter = MagicMock()
         adapter.get_portfolios.return_value = portfolios or []
+
         adapter.get_bond_by_figi.side_effect = lambda figi: (bonds_by_figi or {}).get(figi)
         adapter.get_next_bond_coupon.side_effect = lambda figi: (next_coupons_by_figi or {}).get(figi)
+        adapter.get_bond_coupons.side_effect = lambda figi: (coupon_events_by_figi or {}).get(figi, [])
+        adapter.get_all_operations.return_value = operations or []
+
         return adapter
 
     return _make
@@ -281,6 +290,40 @@ def make_portfolio_info():
             annual_income_after_tax=annual_income_after_tax,
             monthly_income_before_tax=monthly_income_before_tax,
             monthly_income_after_tax=monthly_income_after_tax,
+        )
+
+    return _make
+
+
+@pytest.fixture
+def make_coupon_metric(make_bond):
+    """Фабрика метрик облигации для тестирования купонного календаря."""
+    def _make(
+        *,
+        figi: str = 'figi-1',
+        name: str = 'Тестовая облигация',
+        quantity: int = 2,
+        next_coupon: Decimal = Decimal('10'),
+        floating_coupon_flag: bool = False,
+    ) -> _BondMetrics:
+        return _BondMetrics(
+            position=AggregatedBondPosition(
+                figi=figi,
+                quantity=quantity,
+                average_position_price=Decimal('0'),
+                current_price=Decimal('0'),
+            ),
+            bond=make_bond(
+                name=name,
+                floating_coupon_flag=floating_coupon_flag,
+            ),
+            next_coupon=next_coupon,
+            ytm_before_tax=Decimal('0'),
+            ytm_after_tax=Decimal('0'),
+            coupon_yield_before_tax=Decimal('0'),
+            coupon_yield_after_tax=Decimal('0'),
+            annual_coupon_before_tax=Decimal('0'),
+            annual_coupon_after_tax=Decimal('0'),
         )
 
     return _make

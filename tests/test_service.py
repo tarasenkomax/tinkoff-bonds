@@ -1,10 +1,13 @@
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
+from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from t_tech.invest import OperationState, OperationType
 
+from bonds.schemas import CouponDay, CouponMonth, CouponPayment
 from bonds.service import BondService
 
 
@@ -607,3 +610,504 @@ class TestGetPortfolioJson:
 
         assert isinstance(data['portfolio_info']['total_invested'], (int, float))
         assert isinstance(data['portfolio_info']['change_percent'], (int, float))
+
+
+class TestGetCalendarEndDate:
+    """Тесты определения конца периода купонного календаря."""
+    @pytest.mark.parametrize(
+        ('start_date', 'expected'),
+        [
+            (date(2026, 11, 1), date(2027, 10, 31)),
+            (date(2026, 1, 1), date(2026, 12, 31)),
+            (date(2024, 3, 1), date(2025, 2, 28)),
+            (date(2023, 3, 1), date(2024, 2, 29)),
+        ],
+    )
+    def test_returns_last_day_of_twelfth_month(
+        self,
+        start_date: date,
+        expected: date,
+    ) -> None:
+        """Проверяет расчёт последнего дня двенадцатого месяца."""
+        result = BondService._get_calendar_end_date(start_date)
+
+        assert result == expected
+
+
+class TestGetCurrentMonthCouponOperations:
+    """Тесты получения фактически выплаченных купонов."""
+    def test_returns_only_executed_coupon_operations_for_portfolio_bonds(
+        self,
+        make_adapter_mock,
+        make_coupon_metric,
+    ) -> None:
+        """Проверяет фильтрацию операций по типу, статусу и FIGI."""
+        coupon_operation = MagicMock(
+            operation_type=OperationType.OPERATION_TYPE_COUPON,
+            state=OperationState.OPERATION_STATE_EXECUTED,
+            figi='figi-1',
+        )
+        non_coupon_operation = MagicMock(
+            operation_type=OperationType.OPERATION_TYPE_BUY,
+            state=OperationState.OPERATION_STATE_EXECUTED,
+            figi='figi-1',
+        )
+        unexecuted_operation = MagicMock(
+            operation_type=OperationType.OPERATION_TYPE_COUPON,
+            state=OperationState.OPERATION_STATE_PROGRESS,
+            figi='figi-1',
+        )
+        foreign_bond_operation = MagicMock(
+            operation_type=OperationType.OPERATION_TYPE_COUPON,
+            state=OperationState.OPERATION_STATE_EXECUTED,
+            figi='figi-2',
+        )
+
+        operations = [
+            coupon_operation,
+            non_coupon_operation,
+            unexecuted_operation,
+            foreign_bond_operation,
+        ]
+
+        adapter = make_adapter_mock(operations=operations)
+        service = BondService(adapter)
+
+        start_date = date(2026, 11, 1)
+        now = datetime(2026, 11, 19, 12, 0, tzinfo=BondService.MOSCOW_TZ)
+        metrics = [make_coupon_metric()]
+
+        result = service._get_current_month_coupon_operations(
+            start_date=start_date,
+            now=now,
+            metrics=metrics,
+        )
+
+        assert result == [coupon_operation]
+
+    def test_requests_operations_for_correct_period(
+        self,
+        make_adapter_mock,
+        make_coupon_metric,
+    ) -> None:
+        """Проверяет передачу периода в адаптер в UTC."""
+        adapter = make_adapter_mock(operations=[])
+        service = BondService(adapter)
+
+        start_date = date(2026, 11, 1)
+        now = datetime(2026, 11, 19, 12, 0, tzinfo=BondService.MOSCOW_TZ)
+
+        service._get_current_month_coupon_operations(
+            start_date=start_date,
+            now=now,
+            metrics=[make_coupon_metric()],
+        )
+
+        adapter.get_all_operations.assert_called_once_with(
+            from_date=datetime(2026, 10, 31, 21, 0, tzinfo=timezone.utc),
+            to_date=datetime(2026, 11, 19, 9, 0, tzinfo=timezone.utc),
+        )
+
+
+class TestAggregatePaidCoupons:
+    """Тесты группировки фактически выплаченных купонов."""
+    def test_aggregates_payments_by_figi(self, make_money) -> None:
+        """Проверяет суммирование выплат по каждой облигации."""
+        service = BondService(MagicMock())
+
+        operations = [
+            MagicMock(figi='figi-1', payment=make_money(units=100)),
+            MagicMock(figi='figi-1', payment=make_money(units=50)),
+            MagicMock(figi='figi-2', payment=make_money(units=200)),
+        ]
+
+        result = service._aggregate_paid_coupons(operations)
+
+        assert result == {
+            'figi-1': Decimal('150'),
+            'figi-2': Decimal('200'),
+        }
+
+
+class TestGetCouponEvents:
+    """Тесты получения купонных событий по облигациям."""
+    def test_returns_events_for_each_bond(
+        self,
+        make_adapter_mock,
+        make_coupon_metric,
+    ) -> None:
+        """Проверяет получение событий для каждой облигации."""
+        events_1 = [MagicMock(), MagicMock()]
+        events_2 = [MagicMock()]
+
+        adapter = make_adapter_mock(
+            coupon_events_by_figi={
+                'figi-1': events_1,
+                'figi-2': events_2,
+            },
+        )
+        service = BondService(adapter)
+
+        metrics = [
+            make_coupon_metric(figi='figi-1'),
+            make_coupon_metric(figi='figi-2'),
+        ]
+
+        result = service._get_coupon_events(metrics)
+
+        assert result == {
+            'figi-1': events_1,
+            'figi-2': events_2,
+        }
+
+
+class TestGetCouponLocalDate:
+    """Тесты преобразования даты купонного события."""
+    @pytest.mark.parametrize(
+        ('coupon_date', 'expected'),
+        [
+            (
+                datetime(2026, 11, 19, 10, 0, tzinfo=timezone.utc),
+                date(2026, 11, 19),
+            ),
+            (
+                datetime(2026, 11, 30, 22, 0, tzinfo=timezone.utc),
+                date(2026, 12, 1),
+            ),
+            (
+                datetime(2026, 11, 19, 10, 0),
+                date(2026, 11, 19),
+            ),
+        ],
+    )
+    def test_converts_coupon_date_to_moscow_date(
+        self,
+        coupon_date: datetime,
+        expected: date,
+    ) -> None:
+        """Проверяет перевод даты в московский часовой пояс."""
+        service = BondService(MagicMock())
+        result = service._get_coupon_local_date(coupon_date)
+
+        assert result == expected
+
+
+class TestBuildMonthDays:
+    """Тесты формирования дней с купонными выплатами."""
+    def test_sorts_days_by_date(self) -> None:
+        """Проверяет сортировку дней по возрастанию даты."""
+        service = BondService(MagicMock())
+
+        first_day = date(2026, 11, 5)
+        second_day = date(2026, 11, 15)
+
+        result = service._build_month_days(
+            month_payments={
+                second_day: [],
+                first_day: [],
+            },
+            month_start=date(2026, 11, 1),
+            month_end=date(2026, 11, 30),
+            today=date(2026, 11, 19),
+            is_current_month=False,
+        )
+
+        assert [day.date for day in result] == [
+            first_day,
+            second_day,
+        ]
+
+    def test_adds_today_without_payments(self) -> None:
+        """Проверяет добавление текущего дня без выплат."""
+        service = BondService(MagicMock())
+        today = date(2026, 11, 19)
+
+        result = service._build_month_days(
+            month_payments={},
+            month_start=date(2026, 11, 1),
+            month_end=date(2026, 11, 30),
+            today=today,
+            is_current_month=True,
+        )
+
+        assert len(result) == 1
+        assert result[0].date == today
+        assert result[0].label == '19.11'
+        assert result[0].is_today is True
+        assert result[0].payments == []
+
+    def test_does_not_add_today_for_another_month(self) -> None:
+        """Проверяет, что текущий день не добавляется в другой месяц."""
+        service = BondService(MagicMock())
+
+        result = service._build_month_days(
+            month_payments={},
+            month_start=date(2026, 12, 1),
+            month_end=date(2026, 12, 31),
+            today=date(2026, 11, 19),
+            is_current_month=False,
+        )
+
+        assert result == []
+
+    def test_sorts_payments_by_bond_name(self) -> None:
+        """Проверяет сортировку выплат по названию облигации."""
+        service = BondService(MagicMock())
+        payment_date = date(2026, 11, 20)
+
+        payments = [
+            CouponPayment(
+                bond_name='ТГК-14 001Р-02',
+                quantity=1,
+                coupon_per_bond=Decimal('10'),
+                total_amount=Decimal('10'),
+            ),
+            CouponPayment(
+                bond_name='ОФЗ 26254',
+                quantity=1,
+                coupon_per_bond=Decimal('10'),
+                total_amount=Decimal('10'),
+            ),
+        ]
+
+        result = service._build_month_days(
+            month_payments={payment_date: payments},
+            month_start=date(2026, 11, 1),
+            month_end=date(2026, 11, 30),
+            today=date(2026, 11, 19),
+            is_current_month=False,
+        )
+
+        assert [payment.bond_name for payment in result[0].payments] == ['ОФЗ 26254', 'ТГК-14 001Р-02']
+
+
+class TestBuildCouponCalendar:
+    """Тесты построения календаря купонных выплат."""
+    def test_builds_calendar_for_twelve_months(self) -> None:
+        """Проверяет формирование двенадцати месяцев календаря."""
+        service = BondService(MagicMock())
+
+        result = service._build_coupon_calendar(
+            metrics=[],
+            coupon_events={},
+            paid_by_figi={},
+            start_date=date(2026, 11, 1),
+            end_date=date(2027, 10, 31),
+            today=date(2026, 11, 19),
+        )
+
+        assert len(result) == 12
+        assert result[0].name == 'НОЯБРЬ'
+        assert result[-1].name == 'ОКТЯБРЬ'
+
+    def test_calculates_coupon_payments_after_tax(self, make_coupon_metric) -> None:
+        """Проверяет расчёт купона после НДФЛ и общей суммы выплаты."""
+        service = BondService(MagicMock())
+        metric = make_coupon_metric()
+
+        coupon_date = datetime(2026, 12, 15, tzinfo=BondService.MOSCOW_TZ)
+        event = SimpleNamespace(
+            coupon_date=coupon_date,
+            pay_one_bond=SimpleNamespace(units=10, nano=0),
+        )
+
+        result = service._build_coupon_calendar(
+            metrics=[metric],
+            coupon_events={'figi-1': [event]},
+            paid_by_figi={},
+            start_date=date(2026, 11, 1),
+            end_date=date(2027, 10, 31),
+            today=date(2026, 11, 19),
+        )
+
+        december = result[1]
+
+        assert december.year == 2026
+        assert december.month == 12
+        assert december.total_amount == Decimal('17.40')
+
+        payment = december.days[0].payments[0]
+
+        assert payment.bond_name == 'Тестовая облигация'
+        assert payment.quantity == 2
+        assert payment.coupon_per_bond == Decimal('8.70')
+        assert payment.total_amount == Decimal('17.40')
+
+    def test_uses_last_known_coupon_for_floating_bond(self, make_coupon_metric) -> None:
+        """Проверяет использование последнего известного купона флоатера."""
+        service = BondService(MagicMock())
+        metric = make_coupon_metric(
+            quantity=2,
+            next_coupon=Decimal('15'),
+            floating_coupon_flag=True,
+        )
+
+        event = SimpleNamespace(
+            coupon_date=datetime(
+                2026,
+                12,
+                15,
+                tzinfo=BondService.MOSCOW_TZ,
+            ),
+            pay_one_bond=SimpleNamespace(units=0, nano=0),
+        )
+
+        result = service._build_coupon_calendar(
+            metrics=[metric],
+            coupon_events={'figi-1': [event]},
+            paid_by_figi={},
+            start_date=date(2026, 11, 1),
+            end_date=date(2027, 10, 31),
+            today=date(2026, 11, 19),
+        )
+
+        payment = result[1].days[0].payments[0]
+
+        assert payment.coupon_per_bond == Decimal('13.05')
+        assert payment.total_amount == Decimal('26.10')
+
+    def test_ignores_events_without_coupon_date(self, make_coupon_metric) -> None:
+        """Проверяет пропуск событий без даты купона."""
+        service = BondService(MagicMock())
+        metric = make_coupon_metric()
+
+        event = SimpleNamespace(
+            coupon_date=None,
+            pay_one_bond=SimpleNamespace(units=10, nano=0),
+        )
+
+        result = service._build_coupon_calendar(
+            metrics=[metric],
+            coupon_events={'figi-1': [event]},
+            paid_by_figi={},
+            start_date=date(2026, 11, 1),
+            end_date=date(2027, 10, 31),
+            today=date(2026, 11, 19),
+        )
+
+        assert all(month.total_amount == Decimal('0') for month in result)
+
+    def test_calculates_paid_and_remaining_amount_for_current_month(self, make_coupon_metric) -> None:
+        """Проверяет расчёт выплаченной и оставшейся суммы текущего месяца."""
+        service = BondService(MagicMock())
+        metric = make_coupon_metric()
+
+        event = SimpleNamespace(
+            coupon_date=datetime(
+                2026,
+                11,
+                25,
+                tzinfo=BondService.MOSCOW_TZ,
+            ),
+            pay_one_bond=SimpleNamespace(units=10, nano=0),
+        )
+
+        result = service._build_coupon_calendar(
+            metrics=[metric],
+            coupon_events={'figi-1': [event]},
+            paid_by_figi={'figi-1': Decimal('5')},
+            start_date=date(2026, 11, 1),
+            end_date=date(2027, 10, 31),
+            today=date(2026, 11, 19),
+        )
+
+        current_month = result[0]
+
+        assert current_month.total_amount == Decimal('17.40')
+        assert current_month.paid_amount == Decimal('5')
+        assert current_month.remaining_amount == Decimal('12.40')
+
+    def test_does_not_include_events_outside_calendar_period(self, make_coupon_metric) -> None:
+        """Проверяет исключение купонных событий за пределами календаря."""
+        service = BondService(MagicMock())
+        metric = make_coupon_metric()
+
+        event = SimpleNamespace(
+            coupon_date=datetime(
+                2027,
+                11,
+                15,
+                tzinfo=BondService.MOSCOW_TZ,
+            ),
+            pay_one_bond=SimpleNamespace(units=10, nano=0),
+        )
+
+        result = service._build_coupon_calendar(
+            metrics=[metric],
+            coupon_events={'figi-1': [event]},
+            paid_by_figi={},
+            start_date=date(2026, 11, 1),
+            end_date=date(2027, 10, 31),
+            today=date(2026, 11, 19),
+        )
+
+        assert all(month.total_amount == Decimal('0') for month in result)
+
+
+class TestCouponCalendarSerialization:
+    """Тесты сериализации DTO купонного календаря."""
+    def test_serializes_coupon_payment(self) -> None:
+        """Проверяет преобразование купонной выплаты в словарь."""
+        payment = CouponPayment(
+            bond_name='Тестовая облигация',
+            quantity=2,
+            coupon_per_bond=Decimal('8.70'),
+            total_amount=Decimal('17.40'),
+        )
+
+        assert payment.to_dict() == {
+            'bond_name': 'Тестовая облигация',
+            'quantity': 2,
+            'coupon_per_bond': '8.70',
+            'total_amount': '17.40',
+        }
+
+    def test_serializes_coupon_day(self) -> None:
+        """Проверяет преобразование дня с выплатами в словарь."""
+        day = CouponDay(
+            date=date(2026, 11, 19),
+            label='19.11',
+            is_today=True,
+            payments=[],
+        )
+
+        assert day.to_dict() == {
+            'date': '2026-11-19',
+            'label': '19.11',
+            'is_today': True,
+            'payments': [],
+        }
+
+    def test_serializes_current_month_with_paid_amounts(self) -> None:
+        """Проверяет наличие полей фактических выплат у текущего месяца."""
+        month = CouponMonth(
+            year=2026,
+            month=11,
+            name='НОЯБРЬ',
+            is_current_month=True,
+            total_amount=Decimal('100'),
+            days=[],
+            paid_amount=Decimal('30'),
+            remaining_amount=Decimal('70'),
+        )
+
+        result = month.to_dict()
+
+        assert result['paid_amount'] == '30'
+        assert result['remaining_amount'] == '70'
+
+    def test_does_not_serialize_paid_amounts_for_future_month(self) -> None:
+        """Проверяет отсутствие полей фактических выплат у будущего месяца."""
+        month = CouponMonth(
+            year=2026,
+            month=12,
+            name='ДЕКАБРЬ',
+            is_current_month=False,
+            total_amount=Decimal('100'),
+            days=[],
+        )
+
+        result = month.to_dict()
+
+        assert 'paid_amount' not in result
+        assert 'remaining_amount' not in result
