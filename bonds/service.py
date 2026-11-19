@@ -32,10 +32,11 @@ class BondService(MoneyFormatterMixin):
 
     TAX_RATE = Decimal('0.13')
     MAX_WORKERS = 3
+    CALENDAR_MONTHS = 12
 
     MOSCOW_TZ = ZoneInfo('Europe/Moscow')
 
-    MONTH_NAMES = (
+    MONTHS = (
         'ЯНВАРЬ',
         'ФЕВРАЛЬ',
         'МАРТ',
@@ -71,10 +72,7 @@ class BondService(MoneyFormatterMixin):
 
         return json.dumps(payload, indent=indent, ensure_ascii=False, default=str)
 
-    def get_coupon_calendar_json(
-        self,
-        indent: int | None = 4,
-    ) -> str:
+    def get_coupon_calendar_json(self, indent: int | None = 4) -> str:
         """
         Сформировать JSON календаря купонных выплат на ближайшие 12 месяцев.
 
@@ -132,15 +130,16 @@ class BondService(MoneyFormatterMixin):
             ensure_ascii=False,
         )
 
-    @staticmethod
-    def _get_calendar_end_date(start_date: date) -> date:
+    @classmethod
+    def _get_calendar_end_date(cls, start_date: date) -> date:
         """
-        Получить последний день месяца, завершающего 12-месячный период.
+        Получить последний день месяца, завершающего календарный период.
 
         :param start_date: первый день текущего месяца
-        :return: последний день двенадцатого месяца
+        :return: последний день последнего месяца периода
         """
-        month_index = start_date.year * 12 + start_date.month - 1 + 11
+        month_index = (start_date.year * 12 + start_date.month - 1 + cls.CALENDAR_MONTHS - 1)
+
         year, month_index = divmod(month_index, 12)
         month = month_index + 1
 
@@ -200,9 +199,7 @@ class BondService(MoneyFormatterMixin):
         paid_by_figi: dict[str, Decimal] = defaultdict(Decimal)
 
         for operation in operations:
-            paid_by_figi[operation.figi] += self._money_to_decimal(
-                operation.payment,
-            )
+            paid_by_figi[operation.figi] += self._money_to_decimal(operation.payment)
 
         return dict(paid_by_figi)
 
@@ -213,9 +210,14 @@ class BondService(MoneyFormatterMixin):
         """
         Получить купонные события для всех облигаций портфеля.
 
+        Запросы к SDK выполняются параллельно.
+
         :param metrics: метрики облигаций портфеля
         :return: словарь FIGI -> список купонных событий
         """
+        if not metrics:
+            return {}
+
         result: dict[str, list[Any]] = {}
 
         with ThreadPoolExecutor(max_workers=self.MAX_WORKERS) as pool:
@@ -239,10 +241,13 @@ class BondService(MoneyFormatterMixin):
         today: date,
     ) -> list[CouponMonth]:
         """
-        Сформировать календарь купонных выплат по месяцам.
+        Сформировать календарь купонных выплат на {CALENDAR_MONTHS} календарных месяцев.
+
+        Для флоатеров с неопределённым размером будущего купона используется
+        последнее известное значение. Такой размер является прогнозным.
 
         :param metrics: метрики облигаций портфеля
-        :param coupon_events: купонные события по FIGI
+        :param coupon_events: купонные события, сгруппированные по FIGI
         :param paid_by_figi: фактически выплаченные суммы по FIGI
         :param start_date: начало календарного периода
         :param end_date: конец календарного периода
@@ -257,16 +262,19 @@ class BondService(MoneyFormatterMixin):
             metric = bonds_by_figi[figi]
             quantity = metric.position.quantity
 
-            last_known_coupon = Decimal(0)
+            last_known_coupon = metric.next_coupon
 
-            for event in sorted(events, key=lambda item: item.coupon_date):
-                coupon_before_tax = self._money_to_decimal(
-                    event.pay_one_bond,
-                )
+            valid_events = [event for event in events if event.coupon_date is not None]
+
+            for event in sorted(
+                    valid_events,
+                    key=lambda item: self._get_coupon_local_date(item.coupon_date),
+            ):
+                coupon_before_tax = self._money_to_decimal(event.pay_one_bond)
 
                 if coupon_before_tax > 0:
                     last_known_coupon = coupon_before_tax
-                else:
+                elif metric.bond.floating_coupon_flag:
                     coupon_before_tax = last_known_coupon
 
                 coupon_date = self._get_coupon_local_date(event.coupon_date)
@@ -274,9 +282,7 @@ class BondService(MoneyFormatterMixin):
                 if not start_date <= coupon_date <= end_date:
                     continue
 
-                coupon_per_bond = self._calculate_coupon_after_tax(
-                    coupon_before_tax,
-                )
+                coupon_per_bond = self._calculate_coupon_after_tax(coupon_before_tax)
                 total_amount = coupon_per_bond * Decimal(quantity)
 
                 payments_by_date[coupon_date].append(
@@ -288,7 +294,7 @@ class BondService(MoneyFormatterMixin):
                     ),
                 )
 
-        months = []
+        months: list[CouponMonth] = []
         current_month = start_date.replace(day=1)
 
         while current_month <= end_date:
@@ -315,36 +321,35 @@ class BondService(MoneyFormatterMixin):
 
             is_current_month = (current_month.year == today.year and current_month.month == today.month)
 
-            month_data = CouponMonth(
-                year=year,
-                month=month,
-                name=self.MONTH_NAMES[month - 1],
+            days = self._build_month_days(
+                month_payments=month_payments,
+                month_start=month_start,
+                month_end=month_end,
+                today=today,
                 is_current_month=is_current_month,
-                total_amount=total_amount,
-                days=self._build_month_days(
-                    month_payments=month_payments,
-                    month_start=month_start,
-                    month_end=month_end,
-                    today=today,
-                    is_current_month=is_current_month,
-                ),
             )
 
             if is_current_month:
-                paid_amount = sum(
-                    paid_by_figi.values(),
-                    Decimal(0),
-                )
+                paid_amount = sum(paid_by_figi.values(), Decimal(0))
 
                 month_data = CouponMonth(
-                    year=month_data.year,
-                    month=month_data.month,
-                    name=month_data.name,
+                    year=year,
+                    month=month,
+                    name=self.MONTHS[month - 1],
                     is_current_month=True,
-                    total_amount=month_data.total_amount,
-                    days=month_data.days,
+                    total_amount=total_amount,
+                    days=days,
                     paid_amount=paid_amount,
                     remaining_amount=total_amount - paid_amount,
+                )
+            else:
+                month_data = CouponMonth(
+                    year=year,
+                    month=month,
+                    name=self.MONTHS[month - 1],
+                    is_current_month=False,
+                    total_amount=total_amount,
+                    days=days,
                 )
 
             months.append(month_data)
@@ -376,7 +381,7 @@ class BondService(MoneyFormatterMixin):
         :param is_current_month: является ли месяц текущим
         :return: список дней с выплатами
         """
-        days = []
+        days: list[CouponDay] = []
 
         for payment_date in sorted(month_payments):
             payments = sorted(

@@ -26,7 +26,7 @@ def main() -> None:
         coupon_calendar_json = service.get_coupon_calendar_json()
 
         report.print_coupon_months_from_json(coupon_calendar_json)
-        report.print_coupon_calendar_from_json(coupon_calendar_json)
+        # report.print_coupon_calendar_from_json(coupon_calendar_json)
 
 
 if __name__ == '__main__':
