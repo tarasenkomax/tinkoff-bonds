@@ -121,7 +121,7 @@ class BondReport:
             remaining_amount = month.remaining_amount or Decimal(0)
 
             summary += (
-                f')  (выплачено: {self._format_calendar_number(paid_amount)} ₽'
+                f') (выплачено: {self._format_calendar_number(paid_amount)} ₽'
                 f', осталось: {self._format_calendar_number(remaining_amount)} ₽'
             )
 
@@ -146,6 +146,7 @@ class BondReport:
             )
 
             self._print_coupon_month_summary(month)
+        print()
 
     @staticmethod
     def save_to_file(json_str: str, directory: str = 'json_dumps') -> str:
@@ -174,6 +175,7 @@ class BondReport:
         print(
             f'{month_title:<20}'
             f'({self._format_calendar_amount(total_amount, sign=True)})',
+            end='',
         )
 
         if month.is_current_month:
@@ -181,11 +183,12 @@ class BondReport:
             remaining_amount = month.remaining_amount or Decimal(0)
 
             print(
-                f'Уже выплачено:  {self._format_calendar_amount(paid_amount, sign=True)}',
+                f' (выплачено: {self._format_calendar_number(paid_amount)} ₽'
+                f', осталось: {self._format_calendar_number(remaining_amount)} ₽)',
+                end='',
             )
-            print(
-                f'Осталось:       {self._format_calendar_amount(remaining_amount, sign=True)}',
-            )
+
+        print()
 
         for day in month.days:
             label = day.label

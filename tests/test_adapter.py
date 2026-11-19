@@ -372,3 +372,171 @@ class TestGetNextBondCoupon:
         result = adapter.get_next_bond_coupon('FIGI1')
 
         assert result is coupon_at_boundary
+
+
+class TestGetOperations:
+    """Тесты получения операций по брокерскому счёту."""
+    def test_returns_operations_from_response(
+        self,
+        mock_client: MagicMock,
+        make_adapter,
+    ) -> None:
+        """Проверяет, что метод возвращает список операций из ответа SDK."""
+        operations = [MagicMock(), MagicMock()]
+        mock_client.operations.get_operations.return_value = MagicMock(operations=operations)
+        adapter = make_adapter(['acc-1'])
+
+        from_date = datetime(2026, 11, 1, tzinfo=timezone.utc)
+        to_date = datetime(2026, 11, 19, tzinfo=timezone.utc)
+
+        result = adapter.get_operations(
+            account_id='acc-1',
+            from_date=from_date,
+            to_date=to_date,
+        )
+
+        assert result == operations
+
+    def test_passes_account_and_dates_to_sdk(
+        self,
+        mock_client: MagicMock,
+        make_adapter,
+    ) -> None:
+        """Проверяет передачу идентификатора счёта и дат в SDK."""
+        mock_client.operations.get_operations.return_value = MagicMock(operations=[])
+        adapter = make_adapter(['acc-1'])
+
+        from_date = datetime(2026, 11, 1, tzinfo=timezone.utc)
+        to_date = datetime(2026, 11, 19, tzinfo=timezone.utc)
+
+        adapter.get_operations(
+            account_id='acc-1',
+            from_date=from_date,
+            to_date=to_date,
+        )
+
+        mock_client.operations.get_operations.assert_called_once_with(
+            account_id='acc-1',
+            from_=from_date,
+            to=to_date,
+        )
+
+    def test_returns_empty_list_when_no_operations(
+        self,
+        mock_client: MagicMock,
+        make_adapter,
+    ) -> None:
+        """Проверяет возврат пустого списка, если операций нет."""
+        mock_client.operations.get_operations.return_value = MagicMock(operations=[])
+        adapter = make_adapter(['acc-1'])
+
+        result = adapter.get_operations(
+            account_id='acc-1',
+            from_date=datetime(2026, 11, 1, tzinfo=timezone.utc),
+            to_date=datetime(2026, 11, 19, tzinfo=timezone.utc),
+        )
+
+        assert result == []
+
+
+@pytest.mark.parametrize(
+    'available_accounts',
+    [['acc-1', 'acc-2', 'acc-3']],
+    indirect=True,
+)
+class TestGetAllOperations:
+    """Тесты получения операций по всем брокерским счетам."""
+    def test_returns_operations_from_all_accounts(
+        self,
+        mock_client: MagicMock,
+        make_adapter,
+    ) -> None:
+        """Проверяет объединение операций со всех брокерских счетов."""
+        operations_1 = [MagicMock(), MagicMock()]
+        operations_2 = [MagicMock()]
+        operations_3 = [MagicMock(), MagicMock()]
+
+        mock_client.operations.get_operations.side_effect = [
+            MagicMock(operations=operations_1),
+            MagicMock(operations=operations_2),
+            MagicMock(operations=operations_3),
+        ]
+        adapter = make_adapter(['acc-1', 'acc-2', 'acc-3'])
+
+        result = adapter.get_all_operations(
+            from_date=datetime(2026, 11, 1, tzinfo=timezone.utc),
+            to_date=datetime(2026, 11, 19, tzinfo=timezone.utc),
+        )
+
+        assert result == operations_1 + operations_2 + operations_3
+
+    def test_calls_sdk_for_each_account(
+        self,
+        mock_client: MagicMock,
+        make_adapter,
+    ) -> None:
+        """Проверяет вызов SDK для каждого брокерского счёта."""
+        mock_client.operations.get_operations.return_value = MagicMock(operations=[])
+        adapter = make_adapter(['acc-1', 'acc-2', 'acc-3'])
+
+        from_date = datetime(2026, 11, 1, tzinfo=timezone.utc)
+        to_date = datetime(2026, 11, 19, tzinfo=timezone.utc)
+
+        adapter.get_all_operations(
+            from_date=from_date,
+            to_date=to_date,
+        )
+
+        assert mock_client.operations.get_operations.call_count == 3
+
+        expected_calls = [
+            {
+                'account_id': 'acc-1',
+                'from_': from_date,
+                'to': to_date,
+            },
+            {
+                'account_id': 'acc-2',
+                'from_': from_date,
+                'to': to_date,
+            },
+            {
+                'account_id': 'acc-3',
+                'from_': from_date,
+                'to': to_date,
+            },
+        ]
+        actual_calls = [call.kwargs for call in mock_client.operations.get_operations.call_args_list]
+        assert actual_calls == expected_calls
+
+    def test_returns_empty_list_when_no_accounts(
+        self,
+        mock_client: MagicMock,
+        make_adapter,
+    ) -> None:
+        """Проверяет возврат пустого списка при отсутствии счетов."""
+        adapter = make_adapter([])
+
+        result = adapter.get_all_operations(
+            from_date=datetime(2026, 11, 1, tzinfo=timezone.utc),
+            to_date=datetime(2026, 11, 19, tzinfo=timezone.utc),
+        )
+
+        assert result == []
+        mock_client.operations.get_operations.assert_not_called()
+
+    def test_returns_empty_list_when_all_accounts_have_no_operations(
+        self,
+        mock_client: MagicMock,
+        make_adapter,
+    ) -> None:
+        """Проверяет возврат пустого списка, если на всех счетах нет операций."""
+        mock_client.operations.get_operations.return_value = MagicMock(operations=[])
+        adapter = make_adapter(['acc-1', 'acc-2'])
+
+        result = adapter.get_all_operations(
+            from_date=datetime(2026, 11, 1, tzinfo=timezone.utc),
+            to_date=datetime(2026, 11, 19, tzinfo=timezone.utc),
+        )
+
+        assert result == []
