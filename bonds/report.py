@@ -98,21 +98,27 @@ class BondReport:
         print()
 
     @staticmethod
-    def save_to_file(json_str: str, directory: str = 'json_dumps') -> str:
+    def save_to_file(
+        json_str: str,
+        directory: str = 'json_dumps',
+        filename_prefix: str = 'portfolio',
+    ) -> str:
         """
         Сохранить JSON-строку в файл с текущей датой и временем.
 
-        :param json_str: JSON-строка с данными портфеля
+        :param json_str: JSON-строка с данными
         :param directory: папка для сохранения
+        :param filename_prefix: префикс имени файла
         :return: путь к сохраненному файлу
         """
         os.makedirs(directory, exist_ok=True)
 
         timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        filepath = os.path.join(directory, f'portfolio_{timestamp}.json')
+        filename = f'{filename_prefix}_{timestamp}.json'
+        filepath = os.path.join(directory, filename)
 
-        with open(filepath, 'w', encoding='utf-8') as f:
-            f.write(json_str)
+        with open(filepath, 'w', encoding='utf-8') as file:
+            file.write(json_str)
 
         return filepath
 

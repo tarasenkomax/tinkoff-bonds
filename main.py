@@ -23,7 +23,7 @@ def main() -> None:
         report.print_portfolio_info_from_json(portfolio_json)
 
         coupon_calendar_json = service.get_coupon_calendar_json()
-        # report.save_to_file(json_str=coupon_calendar_json, directory='json_dumps/coupon_calendar')
+        report.save_to_file(coupon_calendar_json, 'json_dumps/coupon_calendar', filename_prefix='calendar')
         report.print_coupon_months_from_json(coupon_calendar_json)
 
         # report.print_coupon_calendar_from_json(coupon_calendar_json)
