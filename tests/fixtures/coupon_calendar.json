@@ -1,0 +1,62 @@
+{
+    "months": [
+        {
+            "year": 2026,
+            "month": 11,
+            "name": "НОЯБРЬ",
+            "is_current_month": true,
+            "total_amount": "21264.19",
+            "paid_amount": "13989.92",
+            "remaining_amount": "7274.27",
+            "days": [
+                {
+                    "date": "2026-11-19",
+                    "label": "19.11",
+                    "is_today": true,
+                    "payments": [
+                        {
+                            "bond_name": "Легенда БО 002P-07",
+                            "quantity": 37,
+                            "coupon_per_bond": "13.59",
+                            "total_amount": "502.83"
+                        },
+                        {
+                            "bond_name": "Селигдар 001Р-02",
+                            "quantity": 22,
+                            "coupon_per_bond": "17.17",
+                            "total_amount": "377.74"
+                        }
+                    ]
+                },
+                {
+                    "date": "2026-11-25",
+                    "label": "25.11",
+                    "is_today": false,
+                    "payments": []
+                }
+            ]
+        },
+        {
+            "year": 2026,
+            "month": 12,
+            "name": "ДЕКАБРЬ",
+            "is_current_month": false,
+            "total_amount": "26155.56",
+            "days": [
+                {
+                    "date": "2026-12-04",
+                    "label": "04.12",
+                    "is_today": false,
+                    "payments": [
+                        {
+                            "bond_name": "ОФЗ 26254",
+                            "quantity": 10,
+                            "coupon_per_bond": "30.00",
+                            "total_amount": "300.00"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

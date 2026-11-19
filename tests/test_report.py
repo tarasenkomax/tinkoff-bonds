@@ -1,4 +1,6 @@
+import json
 import os
+from datetime import date
 from decimal import Decimal
 
 from freezegun import freeze_time
@@ -145,3 +147,159 @@ class TestSaveToFile:
 
         with open(filepath, 'r', encoding='utf-8') as f:
             assert f.read() == json_str
+
+
+class TestPrintCouponCalendarFromJson:
+    """Тесты вывода купонного календаря."""
+    def test_prints_months_days_and_payments(
+        self,
+        make_report,
+        coupon_calendar_json_str,
+        capsys,
+    ) -> None:
+        """Проверяет вывод месяцев, дат и выплат по облигациям."""
+        make_report.print_coupon_calendar_from_json(coupon_calendar_json_str)
+
+        output = capsys.readouterr().out
+
+        assert 'НОЯБРЬ 2026' in output
+        assert '19.11 (СЕГОДНЯ)' in output
+        assert 'Легенда БО 002P-07' in output
+        assert 'Селигдар 001Р-02' in output
+        assert '37 x 13.59 ₽ = 502.83 ₽' in output
+        assert '22 x 17.17 ₽ = 377.74 ₽' in output
+
+
+class TestPrintCouponMonthsFromJson:
+    """Тесты вывода сводки по месяцам."""
+    def test_prints_all_months(
+        self,
+        make_report,
+        coupon_calendar_json_str,
+        capsys,
+    ) -> None:
+        """Проверяет вывод сумм выплат по всем месяцам."""
+        make_report.print_coupon_months_from_json(coupon_calendar_json_str)
+
+        output = capsys.readouterr().out
+
+        assert 'НОЯБРЬ 2026' in output
+        assert 'ДЕКАБРЬ 2026' in output
+        assert '+21 264.19 ₽' in output
+        assert '+26 155.56 ₽' in output
+        assert 'выплачено: 13 989.92 ₽' in output
+        assert 'осталось: 7 274.27 ₽' in output
+
+
+class TestParseCouponPayment:
+    """Тесты парсинга выплаты по облигации."""
+    def test_parses_coupon_payment(
+        self,
+        make_report,
+        coupon_calendar_json_str,
+    ) -> None:
+        """Проверяет преобразование данных выплаты в CouponPayment."""
+        data = json.loads(coupon_calendar_json_str)
+        payment_data = data['months'][0]['days'][0]['payments'][0]
+
+        result = make_report._parse_coupon_payment(payment_data)
+
+        assert result.bond_name == 'Легенда БО 002P-07'
+        assert result.quantity == 37
+        assert result.coupon_per_bond == Decimal('13.59')
+        assert result.total_amount == Decimal('502.83')
+
+
+class TestParseCouponDay:
+    """Тесты парсинга дня купонного календаря."""
+    def test_parses_coupon_day(
+        self,
+        make_report,
+        coupon_calendar_json_str,
+    ) -> None:
+        """Проверяет преобразование данных дня в CouponDay."""
+        data = json.loads(coupon_calendar_json_str)
+        day_data = data['months'][0]['days'][0]
+
+        result = make_report._parse_coupon_day(day_data)
+
+        assert result.date == date(2026, 11, 19)
+        assert result.label == '19.11'
+        assert result.is_today is True
+        assert len(result.payments) == 2
+        assert result.payments[0].bond_name == 'Легенда БО 002P-07'
+        assert result.payments[1].bond_name == 'Селигдар 001Р-02'
+
+    def test_parses_day_without_payments(
+        self,
+        make_report,
+        coupon_calendar_json_str,
+    ) -> None:
+        """Проверяет парсинг дня без выплат."""
+        data = json.loads(coupon_calendar_json_str)
+        day_data = data['months'][0]['days'][1]
+
+        result = make_report._parse_coupon_day(day_data)
+
+        assert result.date == date(2026, 11, 25)
+        assert result.payments == []
+
+
+class TestParseCouponMonth:
+    """Тесты парсинга месяца купонного календаря."""
+    def test_parses_coupon_month(
+        self,
+        make_report,
+        coupon_calendar_json_str,
+    ) -> None:
+        """Проверяет преобразование данных месяца в CouponMonth."""
+        data = json.loads(coupon_calendar_json_str)
+        month_data = data['months'][0]
+
+        result = make_report._parse_coupon_month(month_data)
+
+        assert result.year == 2026
+        assert result.month == 11
+        assert result.name == 'НОЯБРЬ'
+        assert result.is_current_month is True
+        assert result.total_amount == Decimal('21264.19')
+        assert result.paid_amount == Decimal('13989.92')
+        assert result.remaining_amount == Decimal('7274.27')
+        assert len(result.days) == 2
+
+    def test_parses_coupon_month_without_days(
+        self,
+        make_report,
+        coupon_calendar_json_str,
+    ) -> None:
+        """Проверяет парсинг месяца без обработки дней."""
+        data = json.loads(coupon_calendar_json_str)
+        month_data = data['months'][0]
+
+        result = make_report._parse_coupon_month(
+            month_data,
+            include_days=False,
+        )
+
+        assert result.year == 2026
+        assert result.month == 11
+        assert result.total_amount == Decimal('21264.19')
+        assert result.days == []
+
+    def test_parses_month_without_payment_summary(
+        self,
+        make_report,
+        coupon_calendar_json_str,
+    ) -> None:
+        """Проверяет парсинг месяца без сумм выплаченного и оставшегося."""
+        data = json.loads(coupon_calendar_json_str)
+        month_data = data['months'][1]
+
+        result = make_report._parse_coupon_month(month_data)
+
+        assert result.year == 2026
+        assert result.month == 12
+        assert result.total_amount == Decimal('26155.56')
+        assert result.paid_amount is None
+        assert result.remaining_amount is None
+        assert len(result.days) == 1

@@ -331,10 +331,17 @@ def make_coupon_metric(make_bond):
 
 @pytest.fixture
 def portfolio_json_str() -> str:
-    """
-    Возвращает содержимое тестового JSON-файла с портфелем.
-    """
+    """Возвращает содержимое тестового JSON-файла с портфелем. """
     fixture_path = Path(__file__).parent / 'fixtures' / 'portfolio.json'
+
+    with open(fixture_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
+
+@pytest.fixture
+def coupon_calendar_json_str() -> str:
+    """Возвращает содержимое тестового JSON-файла с купонным календарём."""
+    fixture_path = Path(__file__).parent / 'fixtures' / 'coupon_calendar.json'
 
     with open(fixture_path, 'r', encoding='utf-8') as f:
         return f.read()
