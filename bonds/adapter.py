@@ -150,3 +150,49 @@ class TinkoffInvestAdapter:
             return None
 
         return min(upcoming, key=lambda coupon: coupon.coupon_date)
+
+    def get_operations(
+        self,
+        account_id: str,
+        from_date: datetime,
+        to_date: datetime,
+    ) -> list[Any]:
+        """
+        Получить операции по брокерскому счёту за указанный период.
+
+        :param account_id: идентификатор брокерского счёта
+        :param from_date: начало периода
+        :param to_date: конец периода
+        :return: список операций
+        """
+        response = self._client.operations.get_operations(
+            account_id=account_id,
+            from_=from_date,
+            to=to_date,
+        )
+        return response.operations
+
+    def get_all_operations(
+        self,
+        from_date: datetime,
+        to_date: datetime,
+    ) -> list[Any]:
+        """
+        Получить операции по всем брокерским счетам за указанный период.
+
+        :param from_date: начало периода
+        :param to_date: конец периода
+        :return: общий список операций
+        """
+        operations = []
+
+        for account_id in self._account_ids:
+            operations.extend(
+                self.get_operations(
+                    account_id=account_id,
+                    from_date=from_date,
+                    to_date=to_date,
+                ),
+            )
+
+        return operations

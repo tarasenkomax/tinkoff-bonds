@@ -1,4 +1,5 @@
 from dataclasses import asdict, dataclass
+from datetime import date
 from decimal import Decimal
 
 from t_tech.invest.schemas import Bond
@@ -84,3 +85,89 @@ class _BondMetrics:
     coupon_yield_after_tax: Decimal
     annual_coupon_before_tax: Decimal
     annual_coupon_after_tax: Decimal
+
+
+@dataclass(frozen=True)
+class CouponPayment:
+    """Купонная выплата по одной облигации."""
+
+    bond_name: str
+    quantity: int
+    coupon_per_bond: Decimal
+    total_amount: Decimal
+
+    def to_dict(self) -> dict:
+        """Преобразовать DTO в словарь для JSON."""
+        return {
+            'bond_name': self.bond_name,
+            'quantity': self.quantity,
+            'coupon_per_bond': str(self.coupon_per_bond),
+            'total_amount': str(self.total_amount),
+        }
+
+
+@dataclass(frozen=True)
+class CouponDay:
+    """Купонные выплаты за один календарный день."""
+
+    date: date
+    label: str
+    is_today: bool
+    payments: list[CouponPayment]
+
+    def to_dict(self) -> dict:
+        """Преобразовать DTO в словарь для JSON."""
+        return {
+            'date': self.date.isoformat(),
+            'label': self.label,
+            'is_today': self.is_today,
+            'payments': [payment.to_dict() for payment in self.payments],
+        }
+
+
+@dataclass(frozen=True)
+class CouponMonth:
+    """Сводная информация о купонных выплатах за месяц."""
+
+    year: int
+    month: int
+    name: str
+    is_current_month: bool
+    total_amount: Decimal
+    days: list[CouponDay]
+    paid_amount: Decimal | None = None
+    remaining_amount: Decimal | None = None
+
+    def to_dict(self) -> dict:
+        """Преобразовать DTO в словарь для JSON."""
+        data = {
+            'year': self.year,
+            'month': self.month,
+            'name': self.name,
+            'is_current_month': self.is_current_month,
+            'total_amount': str(self.total_amount),
+            'days': [day.to_dict() for day in self.days],
+        }
+
+        if self.is_current_month:
+            data.update({
+                'paid_amount': str(self.paid_amount),
+                'remaining_amount': str(self.remaining_amount),
+            })
+
+        return data
+
+
+@dataclass(frozen=True)
+class CouponCalendar:
+    """Календарь купонных выплат."""
+
+    current_date: date
+    months: list[CouponMonth]
+
+    def to_dict(self) -> dict:
+        """Преобразовать DTO в словарь для JSON."""
+        return {
+            'current_date': self.current_date.isoformat(),
+            'months': [month.to_dict() for month in self.months],
+        }

@@ -1,9 +1,15 @@
 import json
 import os
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
-from bonds.schemas import BondInfo, BondPortfolioInfo
+from bonds.schemas import (
+    BondInfo,
+    BondPortfolioInfo,
+    CouponDay,
+    CouponMonth,
+    CouponPayment,
+)
 
 
 class BondReport:
@@ -61,6 +67,86 @@ class BondReport:
         self._print_portfolio_info(portfolio_info)
         self._print_bonds_table(bonds, portfolio_info)
 
+    def print_coupon_calendar_from_json(self, json_str: str) -> None:
+        """Вывести подробный календарь купонных выплат из JSON."""
+        data = json.loads(json_str)
+
+        for month_data in data['months']:
+            days = []
+
+            for day_data in month_data['days']:
+                payments = [
+                    CouponPayment(
+                        bond_name=payment['bond_name'],
+                        quantity=payment['quantity'],
+                        coupon_per_bond=Decimal(payment['coupon_per_bond']),
+                        total_amount=Decimal(payment['total_amount']),
+                    ) for payment in day_data['payments']
+                ]
+
+                days.append(
+                    CouponDay(
+                        date=date.fromisoformat(day_data['date']),
+                        label=day_data['label'],
+                        is_today=day_data['is_today'],
+                        payments=payments,
+                    ),
+                )
+
+            month = CouponMonth(
+                year=month_data['year'],
+                month=month_data['month'],
+                name=month_data['name'],
+                is_current_month=month_data['is_current_month'],
+                total_amount=Decimal(month_data['total_amount']),
+                days=days,
+                paid_amount=(Decimal(month_data['paid_amount']) if 'paid_amount' in month_data else None),
+                remaining_amount=(
+                    Decimal(month_data['remaining_amount']) if 'remaining_amount' in month_data else None
+                ),
+            )
+
+            self._print_coupon_month(month)
+
+    def _print_coupon_month_summary(self, month: CouponMonth) -> None:
+        """Вывести сводку купонных выплат за один месяц."""
+        month_title = f'{month.name} {month.year}'
+        total_amount = month.total_amount
+
+        summary = (f'{month_title:<20}'
+                   f'({self._format_calendar_amount(total_amount, sign=True)}')
+
+        if month.is_current_month:
+            paid_amount = month.paid_amount or Decimal(0)
+            remaining_amount = month.remaining_amount or Decimal(0)
+
+            summary += (
+                f')  (выплачено: {self._format_calendar_number(paid_amount)} ₽'
+                f', осталось: {self._format_calendar_number(remaining_amount)} ₽'
+            )
+
+        print(f'{summary})')
+
+    def print_coupon_months_from_json(self, json_str: str) -> None:
+        """Вывести только месячную сводку купонных выплат."""
+        data = json.loads(json_str)
+
+        for month_data in data['months']:
+            month = CouponMonth(
+                year=month_data['year'],
+                month=month_data['month'],
+                name=month_data['name'],
+                is_current_month=month_data['is_current_month'],
+                total_amount=Decimal(month_data['total_amount']),
+                days=[],
+                paid_amount=(Decimal(month_data['paid_amount']) if 'paid_amount' in month_data else None),
+                remaining_amount=(
+                    Decimal(month_data['remaining_amount']) if 'remaining_amount' in month_data else None
+                ),
+            )
+
+            self._print_coupon_month_summary(month)
+
     @staticmethod
     def save_to_file(json_str: str, directory: str = 'json_dumps') -> str:
         """
@@ -79,6 +165,71 @@ class BondReport:
             f.write(json_str)
 
         return filepath
+
+    def _print_coupon_month(self, month: CouponMonth) -> None:
+        """Вывести информацию о купонных выплатах за месяц."""
+        month_title = f'{month.name} {month.year}'
+        total_amount = month.total_amount
+
+        print(
+            f'{month_title:<20}'
+            f'({self._format_calendar_amount(total_amount, sign=True)})',
+        )
+
+        if month.is_current_month:
+            paid_amount = month.paid_amount or Decimal(0)
+            remaining_amount = month.remaining_amount or Decimal(0)
+
+            print(
+                f'Уже выплачено:  {self._format_calendar_amount(paid_amount, sign=True)}',
+            )
+            print(
+                f'Осталось:       {self._format_calendar_amount(remaining_amount, sign=True)}',
+            )
+
+        for day in month.days:
+            label = day.label
+
+            if day.is_today:
+                label += ' (СЕГОДНЯ)'
+
+            print(label)
+
+            for payment in day.payments:
+                self._print_coupon_payment(payment)
+
+        print()
+
+    def _print_coupon_payment(self, payment: CouponPayment) -> None:
+        """Вывести информацию об одной купонной выплате."""
+        bond_name = payment.bond_name
+        quantity = payment.quantity
+
+        coupon_per_bond = payment.coupon_per_bond
+        total_amount = payment.total_amount
+
+        print(
+            f'  {bond_name:<32}'
+            f'{quantity:>5} x '
+            f'{self._format_calendar_number(coupon_per_bond)} ₽ = '
+            f'{self._format_calendar_number(total_amount)} ₽',
+        )
+
+    @staticmethod
+    def _format_calendar_number(value: Decimal) -> str:
+        """Отформатировать сумму с пробелами между разрядами и двумя знаками."""
+        return f'{value:,.2f}'.replace(',', ' ')
+
+    @classmethod
+    def _format_calendar_amount(
+        cls,
+        value: Decimal,
+        sign: bool = False,
+    ) -> str:
+        """Отформатировать денежную сумму с валютой и необязательным знаком."""
+        prefix = '+' if sign and value >= 0 else ''
+
+        return f'{prefix}{cls._format_calendar_number(value)} ₽'
 
     @staticmethod
     def _format_percent(value: Decimal) -> str:

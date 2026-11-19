@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import calendar
 import json
 import re
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timezone
 from decimal import Decimal
+from typing import Any
+from zoneinfo import ZoneInfo
 
-from t_tech.invest.schemas import Bond, PortfolioPosition
+from t_tech.invest.schemas import Bond, OperationState, OperationType, PortfolioPosition
 
 from bonds.adapter import TinkoffInvestAdapter
 from bonds.mixins import MoneyFormatterMixin
@@ -16,6 +19,10 @@ from bonds.schemas import (
     AggregatedBondPosition,
     BondInfo,
     BondPortfolioInfo,
+    CouponCalendar,
+    CouponDay,
+    CouponMonth,
+    CouponPayment,
     _BondMetrics,
 )
 
@@ -25,6 +32,23 @@ class BondService(MoneyFormatterMixin):
 
     TAX_RATE = Decimal('0.13')
     MAX_WORKERS = 3
+
+    MOSCOW_TZ = ZoneInfo('Europe/Moscow')
+
+    MONTH_NAMES = (
+        'ЯНВАРЬ',
+        'ФЕВРАЛЬ',
+        'МАРТ',
+        'АПРЕЛЬ',
+        'МАЙ',
+        'ИЮНЬ',
+        'ИЮЛЬ',
+        'АВГУСТ',
+        'СЕНТЯБРЬ',
+        'ОКТЯБРЬ',
+        'НОЯБРЬ',
+        'ДЕКАБРЬ',
+    )
 
     def __init__(self, adapter: TinkoffInvestAdapter) -> None:
         self._adapter = adapter
@@ -46,6 +70,355 @@ class BondService(MoneyFormatterMixin):
         }
 
         return json.dumps(payload, indent=indent, ensure_ascii=False, default=str)
+
+    def get_coupon_calendar_json(
+        self,
+        indent: int | None = 4,
+    ) -> str:
+        """
+        Сформировать JSON календаря купонных выплат на ближайшие 12 месяцев.
+
+        Период начинается с первого числа текущего месяца.
+
+        :param indent: отступы для форматирования JSON
+        :return: JSON-строка с календарём купонных выплат
+        """
+        now = datetime.now(self.MOSCOW_TZ)
+        today = now.date()
+
+        start_date = today.replace(day=1)
+        end_date = self._get_calendar_end_date(start_date)
+
+        metrics = self._collect_bond_metrics()
+
+        if not metrics:
+            calendar_data = CouponCalendar(
+                current_date=today,
+                months=[],
+            )
+
+            return json.dumps(
+                calendar_data.to_dict(),
+                indent=indent,
+                ensure_ascii=False,
+            )
+
+        operations = self._get_current_month_coupon_operations(
+            start_date=start_date,
+            now=now,
+            metrics=metrics,
+        )
+
+        paid_by_figi = self._aggregate_paid_coupons(operations)
+        coupon_events = self._get_coupon_events(metrics)
+
+        months = self._build_coupon_calendar(
+            metrics=metrics,
+            coupon_events=coupon_events,
+            paid_by_figi=paid_by_figi,
+            start_date=start_date,
+            end_date=end_date,
+            today=today,
+        )
+
+        calendar_data = CouponCalendar(
+            current_date=today,
+            months=months,
+        )
+
+        return json.dumps(
+            calendar_data.to_dict(),
+            indent=indent,
+            ensure_ascii=False,
+        )
+
+    @staticmethod
+    def _get_calendar_end_date(start_date: date) -> date:
+        """
+        Получить последний день месяца, завершающего 12-месячный период.
+
+        :param start_date: первый день текущего месяца
+        :return: последний день двенадцатого месяца
+        """
+        month_index = start_date.year * 12 + start_date.month - 1 + 11
+        year, month_index = divmod(month_index, 12)
+        month = month_index + 1
+
+        last_day = calendar.monthrange(year, month)[1]
+
+        return date(year, month, last_day)
+
+    def _get_current_month_coupon_operations(
+        self,
+        start_date: date,
+        now: datetime,
+        metrics: list[_BondMetrics],
+    ) -> list[Any]:
+        """
+        Получить фактически выплаченные купоны за текущий месяц.
+
+        Учитываются только исполненные операции выплаты купонов
+        по облигациям, присутствующим в текущем портфеле.
+
+        :param start_date: первый день текущего месяца
+        :param now: текущее время в московском часовом поясе
+        :param metrics: метрики облигаций портфеля
+        :return: список купонных операций
+        """
+        start_datetime = datetime.combine(
+            start_date,
+            time.min,
+            tzinfo=self.MOSCOW_TZ,
+        ).astimezone(timezone.utc)
+
+        end_datetime = now.astimezone(timezone.utc)
+
+        portfolio_figis = {metric.position.figi for metric in metrics}
+
+        operations = self._adapter.get_all_operations(
+            from_date=start_datetime,
+            to_date=end_datetime,
+        )
+
+        return [
+            operation for operation in operations if (
+                operation.operation_type == OperationType.OPERATION_TYPE_COUPON
+                and operation.state == OperationState.OPERATION_STATE_EXECUTED and operation.figi in portfolio_figis
+            )
+        ]
+
+    def _aggregate_paid_coupons(
+        self,
+        operations: list[Any],
+    ) -> dict[str, Decimal]:
+        """
+        Сгруппировать фактически выплаченные купоны по FIGI.
+
+        :param operations: список купонных операций
+        :return: словарь FIGI -> сумма выплаченных купонов
+        """
+        paid_by_figi: dict[str, Decimal] = defaultdict(Decimal)
+
+        for operation in operations:
+            paid_by_figi[operation.figi] += self._money_to_decimal(
+                operation.payment,
+            )
+
+        return dict(paid_by_figi)
+
+    def _get_coupon_events(
+        self,
+        metrics: list[_BondMetrics],
+    ) -> dict[str, list[Any]]:
+        """
+        Получить купонные события для всех облигаций портфеля.
+
+        :param metrics: метрики облигаций портфеля
+        :return: словарь FIGI -> список купонных событий
+        """
+        result: dict[str, list[Any]] = {}
+
+        with ThreadPoolExecutor(max_workers=self.MAX_WORKERS) as pool:
+            events = pool.map(
+                self._adapter.get_bond_coupons,
+                [metric.position.figi for metric in metrics],
+            )
+
+            for metric, bond_events in zip(metrics, events):
+                result[metric.position.figi] = bond_events
+
+        return result
+
+    def _build_coupon_calendar(
+        self,
+        metrics: list[_BondMetrics],
+        coupon_events: dict[str, list[Any]],
+        paid_by_figi: dict[str, Decimal],
+        start_date: date,
+        end_date: date,
+        today: date,
+    ) -> list[CouponMonth]:
+        """
+        Сформировать календарь купонных выплат по месяцам.
+
+        :param metrics: метрики облигаций портфеля
+        :param coupon_events: купонные события по FIGI
+        :param paid_by_figi: фактически выплаченные суммы по FIGI
+        :param start_date: начало календарного периода
+        :param end_date: конец календарного периода
+        :param today: текущая дата
+        :return: список месяцев с купонными выплатами
+        """
+        bonds_by_figi = {metric.position.figi: metric for metric in metrics}
+
+        payments_by_date: dict[date, list[CouponPayment]] = defaultdict(list)
+
+        for figi, events in coupon_events.items():
+            metric = bonds_by_figi[figi]
+            quantity = metric.position.quantity
+
+            last_known_coupon = Decimal(0)
+
+            for event in sorted(events, key=lambda item: item.coupon_date):
+                coupon_before_tax = self._money_to_decimal(
+                    event.pay_one_bond,
+                )
+
+                if coupon_before_tax > 0:
+                    last_known_coupon = coupon_before_tax
+                else:
+                    coupon_before_tax = last_known_coupon
+
+                coupon_date = self._get_coupon_local_date(event.coupon_date)
+
+                if not start_date <= coupon_date <= end_date:
+                    continue
+
+                coupon_per_bond = self._calculate_coupon_after_tax(
+                    coupon_before_tax,
+                )
+                total_amount = coupon_per_bond * Decimal(quantity)
+
+                payments_by_date[coupon_date].append(
+                    CouponPayment(
+                        bond_name=metric.bond.name,
+                        quantity=quantity,
+                        coupon_per_bond=coupon_per_bond,
+                        total_amount=total_amount,
+                    ),
+                )
+
+        months = []
+        current_month = start_date.replace(day=1)
+
+        while current_month <= end_date:
+            year = current_month.year
+            month = current_month.month
+
+            month_start = current_month
+            month_end = date(
+                year,
+                month,
+                calendar.monthrange(year, month)[1],
+            )
+
+            month_payments = {
+                payment_date: payments
+                for payment_date, payments in payments_by_date.items()
+                if month_start <= payment_date <= month_end
+            }
+
+            total_amount = sum(
+                (payment.total_amount for payments in month_payments.values() for payment in payments),
+                Decimal(0),
+            )
+
+            is_current_month = (current_month.year == today.year and current_month.month == today.month)
+
+            month_data = CouponMonth(
+                year=year,
+                month=month,
+                name=self.MONTH_NAMES[month - 1],
+                is_current_month=is_current_month,
+                total_amount=total_amount,
+                days=self._build_month_days(
+                    month_payments=month_payments,
+                    month_start=month_start,
+                    month_end=month_end,
+                    today=today,
+                    is_current_month=is_current_month,
+                ),
+            )
+
+            if is_current_month:
+                paid_amount = sum(
+                    paid_by_figi.values(),
+                    Decimal(0),
+                )
+
+                month_data = CouponMonth(
+                    year=month_data.year,
+                    month=month_data.month,
+                    name=month_data.name,
+                    is_current_month=True,
+                    total_amount=month_data.total_amount,
+                    days=month_data.days,
+                    paid_amount=paid_amount,
+                    remaining_amount=total_amount - paid_amount,
+                )
+
+            months.append(month_data)
+
+            if month == 12:
+                current_month = date(year + 1, 1, 1)
+            else:
+                current_month = date(year, month + 1, 1)
+
+        return months
+
+    @staticmethod
+    def _build_month_days(
+        month_payments: dict[date, list[CouponPayment]],
+        month_start: date,
+        month_end: date,
+        today: date,
+        is_current_month: bool,
+    ) -> list[CouponDay]:
+        """
+        Сформировать дни месяца с купонными выплатами.
+
+        Текущая дата добавляется всегда, даже если выплат в этот день нет.
+
+        :param month_payments: выплаты, сгруппированные по датам
+        :param month_start: первый день месяца
+        :param month_end: последний день месяца
+        :param today: текущая дата
+        :param is_current_month: является ли месяц текущим
+        :return: список дней с выплатами
+        """
+        days = []
+
+        for payment_date in sorted(month_payments):
+            payments = sorted(
+                month_payments[payment_date],
+                key=lambda payment: payment.bond_name.lower(),
+            )
+
+            days.append(
+                CouponDay(
+                    date=payment_date,
+                    label=payment_date.strftime('%d.%m'),
+                    is_today=payment_date == today,
+                    payments=payments,
+                ),
+            )
+
+        if is_current_month and month_start <= today <= month_end:
+            today_exists = any(day.date == today for day in days)
+
+            if not today_exists:
+                days.append(
+                    CouponDay(
+                        date=today,
+                        label=today.strftime('%d.%m'),
+                        is_today=True,
+                        payments=[],
+                    ),
+                )
+
+        return sorted(days, key=lambda day: day.date)
+
+    def _get_coupon_local_date(self, coupon_date: datetime) -> date:
+        """
+        Получить дату купонного события в московском часовом поясе.
+
+        :param coupon_date: дата купонного события из SDK
+        :return: локальная дата
+        """
+        if coupon_date.tzinfo is None:
+            coupon_date = coupon_date.replace(tzinfo=timezone.utc)
+
+        return coupon_date.astimezone(self.MOSCOW_TZ).date()
 
     def _get_bonds(self) -> list[BondInfo]:
         """
