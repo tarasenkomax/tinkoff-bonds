@@ -2,6 +2,7 @@ import json
 import os
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from bonds.schemas import (
     BondInfo,
@@ -68,65 +69,32 @@ class BondReport:
         self._print_bonds_table(bonds, portfolio_info)
 
     def print_coupon_calendar_from_json(self, json_str: str) -> None:
-        """Вывести подробный календарь купонных выплат из JSON."""
+        """
+        Разобрать JSON и вывести подробный календарь купонных выплат.
+
+        :param json_str: JSON-строка с данными купонного календаря
+        """
         data = json.loads(json_str)
 
         for month_data in data['months']:
-            days = []
-
-            for day_data in month_data['days']:
-                payments = [
-                    CouponPayment(
-                        bond_name=payment['bond_name'],
-                        quantity=payment['quantity'],
-                        coupon_per_bond=Decimal(payment['coupon_per_bond']),
-                        total_amount=Decimal(payment['total_amount']),
-                    ) for payment in day_data['payments']
-                ]
-
-                days.append(
-                    CouponDay(
-                        date=date.fromisoformat(day_data['date']),
-                        label=day_data['label'],
-                        is_today=day_data['is_today'],
-                        payments=payments,
-                    ),
-                )
-
-            month = CouponMonth(
-                year=month_data['year'],
-                month=month_data['month'],
-                name=month_data['name'],
-                is_current_month=month_data['is_current_month'],
-                total_amount=Decimal(month_data['total_amount']),
-                days=days,
-                paid_amount=(Decimal(month_data['paid_amount']) if 'paid_amount' in month_data else None),
-                remaining_amount=(
-                    Decimal(month_data['remaining_amount']) if 'remaining_amount' in month_data else None
-                ),
-            )
-
+            month = self._parse_coupon_month(month_data)
             self._print_coupon_month(month)
 
     def print_coupon_months_from_json(self, json_str: str) -> None:
-        """Вывести только месячную сводку купонных выплат."""
+        """
+        Разобрать JSON и вывести только месячную сводку купонных выплат.
+
+        :param json_str: JSON-строка с данными купонного календаря
+        """
         data = json.loads(json_str)
 
         for month_data in data['months']:
-            month = CouponMonth(
-                year=month_data['year'],
-                month=month_data['month'],
-                name=month_data['name'],
-                is_current_month=month_data['is_current_month'],
-                total_amount=Decimal(month_data['total_amount']),
-                days=[],
-                paid_amount=(Decimal(month_data['paid_amount']) if 'paid_amount' in month_data else None),
-                remaining_amount=(
-                    Decimal(month_data['remaining_amount']) if 'remaining_amount' in month_data else None
-                ),
+            month = self._parse_coupon_month(
+                month_data,
+                include_days=False,
             )
-
             self._print_coupon_month_summary(month)
+
         print()
 
     @staticmethod
@@ -151,21 +119,20 @@ class BondReport:
     def _print_coupon_month_summary(self, month: CouponMonth) -> None:
         """Вывести сводку купонных выплат за один месяц."""
         month_title = f'{month.name} {month.year}'
-        total_amount = month.total_amount
 
         summary = (f'{month_title:<20}'
-                   f'({self._format_calendar_amount(total_amount, sign=True)}')
+                   f'({self._format_calendar_amount(month.total_amount, sign=True)})')
 
         if month.is_current_month:
             paid_amount = month.paid_amount or Decimal(0)
             remaining_amount = month.remaining_amount or Decimal(0)
 
             summary += (
-                f') (выплачено: {self._format_calendar_number(paid_amount)} ₽'
-                f', осталось: {self._format_calendar_number(remaining_amount)} ₽'
+                f' (выплачено: {self._format_calendar_number(paid_amount)} ₽'
+                f', осталось: {self._format_calendar_number(remaining_amount)} ₽)'
             )
 
-        print(f'{summary})')
+        print(summary)
 
     def _print_coupon_month(self, month: CouponMonth) -> None:
         """Вывести информацию о купонных выплатах за месяц."""
@@ -357,7 +324,7 @@ class BondReport:
         return self._colorize(current_yield_text, color, self.CURRENT_YIELD_WIDTH)
 
     @staticmethod
-    def _parse_portfolio_info(data: dict) -> BondPortfolioInfo:
+    def _parse_portfolio_info(data: dict[str, Any]) -> BondPortfolioInfo:
         """Восстановить DTO BondPortfolioInfo из словаря."""
         return BondPortfolioInfo(
             total_quantity=data['total_quantity'],
@@ -375,7 +342,7 @@ class BondReport:
         )
 
     @staticmethod
-    def _parse_bond_info(data: dict) -> BondInfo:
+    def _parse_bond_info(data: dict[str, Any]) -> BondInfo:
         """Восстановить DTO BondInfo из словаря."""
         return BondInfo(
             name=data['name'],
@@ -475,3 +442,58 @@ class BondReport:
                 f'{bond.yield_to_maturity:<{self.YTM_WIDTH}}',
             )
         print()
+
+    @staticmethod
+    def _parse_coupon_payment(data: dict[str, Any]) -> CouponPayment:
+        """
+        Восстановить DTO купонной выплаты из JSON-словаря.
+
+        :param data: данные одной купонной выплаты
+        :return: DTO купонной выплаты
+        """
+        return CouponPayment(
+            bond_name=data['bond_name'],
+            quantity=data['quantity'],
+            coupon_per_bond=Decimal(str(data['coupon_per_bond'])),
+            total_amount=Decimal(str(data['total_amount'])),
+        )
+
+    @classmethod
+    def _parse_coupon_day(cls, data: dict[str, Any]) -> CouponDay:
+        """
+        Восстановить DTO дня купонных выплат из JSON-словаря.
+
+        :param data: данные дня с купонными выплатами
+        :return: DTO дня купонных выплат
+        """
+        return CouponDay(
+            date=date.fromisoformat(data['date']),
+            label=data['label'],
+            is_today=data['is_today'],
+            payments=[cls._parse_coupon_payment(payment) for payment in data['payments']],
+        )
+
+    @classmethod
+    def _parse_coupon_month(
+        cls,
+        data: dict[str, Any],
+        *,
+        include_days: bool = True,
+    ) -> CouponMonth:
+        """
+        Восстановить DTO месяца из JSON-словаря.
+
+        :param data: данные месяца
+        :param include_days: восстанавливать ли список дней и выплат
+        :return: DTO месяца
+        """
+        return CouponMonth(
+            year=data['year'],
+            month=data['month'],
+            name=data['name'],
+            is_current_month=data['is_current_month'],
+            total_amount=Decimal(str(data['total_amount'])),
+            days=[cls._parse_coupon_day(day) for day in data['days']] if include_days else [],
+            paid_amount=Decimal(str(data['paid_amount'])) if 'paid_amount' in data else None,
+            remaining_amount=Decimal(str(data['remaining_amount'])) if 'remaining_amount' in data else None,
+        )
