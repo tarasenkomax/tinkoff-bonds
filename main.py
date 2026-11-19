@@ -21,7 +21,7 @@ def main() -> None:
         portfolio_json = service.get_portfolio_json()
 
         report.save_to_file(portfolio_json)
-        report.print_from_json(portfolio_json)
+        report.print_portfolio_info_from_json(portfolio_json)
 
         coupon_calendar_json = service.get_coupon_calendar_json()
 

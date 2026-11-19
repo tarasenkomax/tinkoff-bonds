@@ -53,7 +53,7 @@ class BondReport:
         f"{'YTM (до/после)':<{YTM_WIDTH}}"
     )
 
-    def print_from_json(self, json_str: str) -> None:
+    def print_portfolio_info_from_json(self, json_str: str) -> None:
         """
         Разобрать JSON и вывести отчет.
 
@@ -108,25 +108,6 @@ class BondReport:
 
             self._print_coupon_month(month)
 
-    def _print_coupon_month_summary(self, month: CouponMonth) -> None:
-        """Вывести сводку купонных выплат за один месяц."""
-        month_title = f'{month.name} {month.year}'
-        total_amount = month.total_amount
-
-        summary = (f'{month_title:<20}'
-                   f'({self._format_calendar_amount(total_amount, sign=True)}')
-
-        if month.is_current_month:
-            paid_amount = month.paid_amount or Decimal(0)
-            remaining_amount = month.remaining_amount or Decimal(0)
-
-            summary += (
-                f') (выплачено: {self._format_calendar_number(paid_amount)} ₽'
-                f', осталось: {self._format_calendar_number(remaining_amount)} ₽'
-            )
-
-        print(f'{summary})')
-
     def print_coupon_months_from_json(self, json_str: str) -> None:
         """Вывести только месячную сводку купонных выплат."""
         data = json.loads(json_str)
@@ -166,6 +147,25 @@ class BondReport:
             f.write(json_str)
 
         return filepath
+
+    def _print_coupon_month_summary(self, month: CouponMonth) -> None:
+        """Вывести сводку купонных выплат за один месяц."""
+        month_title = f'{month.name} {month.year}'
+        total_amount = month.total_amount
+
+        summary = (f'{month_title:<20}'
+                   f'({self._format_calendar_amount(total_amount, sign=True)}')
+
+        if month.is_current_month:
+            paid_amount = month.paid_amount or Decimal(0)
+            remaining_amount = month.remaining_amount or Decimal(0)
+
+            summary += (
+                f') (выплачено: {self._format_calendar_number(paid_amount)} ₽'
+                f', осталось: {self._format_calendar_number(remaining_amount)} ₽'
+            )
+
+        print(f'{summary})')
 
     def _print_coupon_month(self, month: CouponMonth) -> None:
         """Вывести информацию о купонных выплатах за месяц."""

@@ -91,7 +91,7 @@ class TestPrintFromJson:
     def test_parses_and_calls_print_methods(self, make_report, portfolio_json_str, capsys) -> None:
         """Метод должен распарсить JSON и вызвать методы вывода."""
         report = make_report
-        report.print_from_json(portfolio_json_str)
+        report.print_portfolio_info_from_json(portfolio_json_str)
 
         captured = capsys.readouterr()
 
