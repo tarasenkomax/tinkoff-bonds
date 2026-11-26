@@ -133,10 +133,12 @@ class BondReport:
             paid_amount = month.paid_amount or Decimal(0)
             remaining_amount = month.remaining_amount or Decimal(0)
 
-            summary += (
-                f' (выплачено: {self._format_calendar_number(paid_amount)} ₽'
-                f', осталось: {self._format_calendar_number(remaining_amount)} ₽)'
-            )
+            summary += f' (выплачено: {self._format_calendar_number(paid_amount)} ₽'
+
+            if remaining_amount > 0:
+                summary += f', осталось: {self._format_calendar_number(remaining_amount)} ₽'
+
+            summary += ')'
 
         print(summary)
 
@@ -155,11 +157,12 @@ class BondReport:
             paid_amount = month.paid_amount or Decimal(0)
             remaining_amount = month.remaining_amount or Decimal(0)
 
-            print(
-                f' (выплачено: {self._format_calendar_number(paid_amount)} ₽'
-                f', осталось: {self._format_calendar_number(remaining_amount)} ₽)',
-                end='',
-            )
+            print(f' (выплачено: {self._format_calendar_number(paid_amount)} ₽', end='')
+
+            if remaining_amount > 0:
+                print(f', осталось: {self._format_calendar_number(remaining_amount)} ₽', end='')
+
+            print(')', end='')
 
         print()
 

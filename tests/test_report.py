@@ -3,6 +3,7 @@ import os
 from datetime import date
 from decimal import Decimal
 
+import pytest
 from freezegun import freeze_time
 
 from bonds.report import BondReport
@@ -303,3 +304,71 @@ class TestParseCouponMonth:
         assert result.paid_amount is None
         assert result.remaining_amount is None
         assert len(result.days) == 1
+
+
+class TestPrintCouponMonthSummary:
+    """Тесты краткого вывода сводки купонных выплат."""
+    @pytest.mark.parametrize(
+        ('remaining_amount', 'should_show_remaining'),
+        [
+            (Decimal('-50.00'), False),
+            (Decimal('0.00'), False),
+            (Decimal('200.00'), True),
+        ],
+    )
+    def test_prints_remaining_amount_correctly(
+        self,
+        capsys,
+        make_coupon_month,
+        remaining_amount: Decimal,
+        should_show_remaining: bool,
+    ) -> None:
+        """Остаток отображается только при положительном значении."""
+        month = make_coupon_month(remaining_amount)
+
+        BondReport()._print_coupon_month_summary(month)
+
+        output = capsys.readouterr().out
+
+        assert 'НОЯБРЬ 2026' in output
+        assert '+1 000.00 ₽' in output
+        assert 'выплачено: 800.00 ₽' in output
+
+        if should_show_remaining:
+            assert 'осталось: 200.00 ₽' in output
+        else:
+            assert 'осталось:' not in output
+
+
+class TestPrintCouponMonth:
+    """Тесты подробного вывода купонных выплат за месяц."""
+    @pytest.mark.parametrize(
+        ('remaining_amount', 'should_show_remaining'),
+        [
+            (Decimal('-50.00'), False),
+            (Decimal('0.00'), False),
+            (Decimal('200.00'), True),
+        ],
+    )
+    def test_prints_remaining_amount_correctly(
+        self,
+        capsys,
+        make_coupon_month,
+        remaining_amount: Decimal,
+        should_show_remaining: bool,
+    ) -> None:
+        """Остаток отображается только при положительном значении."""
+        month = make_coupon_month(remaining_amount)
+
+        BondReport()._print_coupon_month(month)
+
+        output = capsys.readouterr().out
+
+        assert 'НОЯБРЬ 2026' in output
+        assert '+1 000.00 ₽' in output
+        assert 'выплачено: 800.00 ₽' in output
+
+        if should_show_remaining:
+            assert 'осталось: 200.00 ₽' in output
+        else:
+            assert 'осталось:' not in output

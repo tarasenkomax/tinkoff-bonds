@@ -12,6 +12,7 @@ from bonds.schemas import (
     AggregatedBondPosition,
     BondInfo,
     BondPortfolioInfo,
+    CouponMonth,
     _BondMetrics,
 )
 
@@ -345,3 +346,21 @@ def coupon_calendar_json_str() -> str:
 
     with open(fixture_path, 'r', encoding='utf-8') as f:
         return f.read()
+
+
+@pytest.fixture
+def make_coupon_month():
+    """Фабрика для создания тестового месяца купонного календаря."""
+    def _make_coupon_month(remaining_amount: Decimal) -> CouponMonth:
+        return CouponMonth(
+            year=2026,
+            month=11,
+            name='НОЯБРЬ',
+            is_current_month=True,
+            total_amount=Decimal('1000.00'),
+            days=[],
+            paid_amount=Decimal('800.00'),
+            remaining_amount=remaining_amount,
+        )
+
+    return _make_coupon_month
