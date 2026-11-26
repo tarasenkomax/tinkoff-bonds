@@ -72,7 +72,7 @@ class _BondMetrics:
     """
     Сырые метрики по одной облигации.
 
-    Считаются один раз в `BondService._collect_bond_metrics`и переиспользуются в
+    Считаются один раз в `BondService._collect_bond_metrics` и переиспользуются в
     `BondService._get_bonds` и `BondService._get_portfolio_info`.
     """
 
